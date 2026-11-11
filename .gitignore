@@ -1,0 +1,12 @@
+.venv/
+.venv313/
+node_modules/
+__pycache__/
+*.pyc
+*.egg-info/
+.pytest_cache/
+extension/dist/
+extension/python/
+*.vsix
+analyzer/tests/external/
+.superpowers/
