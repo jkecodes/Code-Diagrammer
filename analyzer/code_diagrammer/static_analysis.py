@@ -6,7 +6,8 @@ import os
 from dataclasses import dataclass, field
 
 from . import __version__
-from .ir import Graph, Meta, Node, SourceRange
+from .flow import FlowGraph, build_flow
+from .ir import Edge, Graph, Meta, Node, SourceRange
 
 MODULE_BASES = {"nn.Module", "torch.nn.Module", "Module"}
 CONTAINERS = {"Sequential", "ModuleList"}
@@ -36,6 +37,11 @@ class ClassTemplate:
     source: SourceRange
     submodules: list[SubmoduleDecl]
     node: ast.ClassDef
+    flow: FlowGraph | None = None  # data flow of `forward`; None when the class has no forward
+    methods: dict[str, FlowGraph] = field(default_factory=dict)  # helper methods
+
+    def decl(self, attr: str) -> SubmoduleDecl | None:
+        return next((d for d in self.submodules if d.attr == attr), None)
 
 
 def _dotted(expr: ast.AST) -> str | None:
@@ -208,10 +214,18 @@ class TemplateIndex:
         return self._templates[key]
 
     def _build_template(self, info: _FileInfo, cls: ast.ClassDef) -> ClassTemplate:
-        return ClassTemplate(
+        tpl = ClassTemplate(
             file=info.path, name=cls.name,
             source=SourceRange(info.path, cls.lineno, cls.end_lineno or cls.lineno),
             submodules=self._collect_submodules(info, cls), node=cls)
+        attrs = {d.attr for d in tpl.submodules}
+        helpers = {n.name: n for n in cls.body if isinstance(n, ast.FunctionDef)
+                   and n.name != "forward" and not n.name.startswith("__")}
+        forward = _method(cls, "forward")
+        if forward is not None:
+            tpl.flow = build_flow(forward, attrs, set(helpers))
+        tpl.methods = {name: build_flow(fn, attrs, set(helpers)) for name, fn in helpers.items()}
+        return tpl
 
     def _collect_submodules(self, info: _FileInfo, cls: ast.ClassDef) -> list[SubmoduleDecl]:
         init = _method(cls, "__init__")
@@ -282,8 +296,8 @@ class TemplateIndex:
 # -- graph construction ---------------------------------------------------------------
 
 def _module_node(index: TemplateIndex, decl: SubmoduleDecl, decl_file: str, prefix: str,
-                 stack: tuple) -> Node:
-    node_id = prefix + decl.attr
+                 stack: tuple, node_id: str | None = None) -> Node:
+    node_id = node_id or prefix + decl.attr
     tpl = None
     if decl.class_ref is not None and decl.class_ref not in stack:
         tpl = index.get(*decl.class_ref)
@@ -299,7 +313,47 @@ def _module_node(index: TemplateIndex, decl: SubmoduleDecl, decl_file: str, pref
 
 def _fill_from_template(index: TemplateIndex, node: Node, tpl: ClassTemplate, prefix: str,
                         stack: tuple) -> None:
-    node.children = [_module_node(index, d, tpl.file, prefix, stack) for d in tpl.submodules]
+    """Children and edges of a module instance: its forward flow, then uncalled submodules."""
+    used: set[str] = set()
+    if tpl.flow is not None:
+        node.children, node.edges = _instantiate_flow(
+            index, tpl, tpl.flow, node.id, prefix, stack, used, ())
+    for d in tpl.submodules:
+        if d.attr not in used:
+            node.children.append(_module_node(index, d, tpl.file, prefix, stack))
+
+
+def _instantiate_flow(index: TemplateIndex, tpl: ClassTemplate, flow: FlowGraph, parent_id: str,
+                      prefix: str, stack: tuple, used: set[str],
+                      method_stack: tuple) -> tuple[list[Node], list[Edge]]:
+    ids: list[str] = []
+    children: list[Node] = []
+    for fn in flow.nodes:
+        line, col, end_line, _ = fn.key
+        site = f"{fn.name}@{line}:{col}"
+        source = SourceRange(tpl.file, line, end_line)
+        decl = tpl.decl(fn.target) if fn.kind == "module" else None
+        if decl is not None:
+            first = decl.attr not in used
+            used.add(decl.attr)
+            node = _module_node(index, decl, tpl.file, prefix, stack,
+                                node_id=None if first else prefix + site)
+        elif fn.kind == "group" and fn.target in tpl.methods:
+            node = Node(id=f"{parent_id}/{site}", name=fn.name, kind="group", type=fn.name,
+                        source=source)
+            if fn.target not in method_stack:
+                node.children, node.edges = _instantiate_flow(
+                    index, tpl, tpl.methods[fn.target], node.id, prefix, stack, used,
+                    method_stack + (fn.target,))
+        else:
+            node = Node(id=f"{parent_id}/{site}", name=fn.name, kind="op", type=fn.name,
+                        source=source, shape_only=fn.shape_only)
+        ids.append(node.id)
+        children.append(node)
+    edges = [Edge(e.src if isinstance(e.src, str) else ids[e.src],
+                  e.dst if isinstance(e.dst, str) else ids[e.dst],
+                  e.out_index, uncertain=e.uncertain) for e in flow.edges]
+    return children, edges
 
 
 def build_static_graph(index: TemplateIndex, file: str, entry: str) -> Graph:
