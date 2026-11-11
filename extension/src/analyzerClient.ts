@@ -19,7 +19,7 @@ export type TraceRequest = StaticRequest & {
 };
 
 export type AnalyzerOptions = {
-  pythonPath: string;
+  pythonPath: string | (() => string); // a function is called for every request
   analyzerDir: string; // folder that contains the `code_diagrammer` package
   timeoutMs: number;
   moduleName?: string;
@@ -42,12 +42,14 @@ export class AnalyzerClient {
   }
 
   private run<T>(request: object, pick: (response: any) => T): Promise<Result<T>> {
-    const { pythonPath, analyzerDir, timeoutMs, moduleName } = this.opts;
+    const { analyzerDir, timeoutMs, moduleName } = this.opts;
+    const pythonPath = typeof this.opts.pythonPath === "function" ? this.opts.pythonPath() : this.opts.pythonPath;
     return new Promise((resolve) => {
       const existing = process.env.PYTHONPATH;
       const child = spawn(pythonPath, ["-X", "utf8", "-m", moduleName ?? "code_diagrammer"], {
         shell: false, // never build a command string: paths may contain spaces
         windowsHide: true,
+        cwd: analyzerDir, // never the workspace: its files must not shadow the analyzer's imports
         env: {
           ...process.env,
           PYTHONPATH: existing ? analyzerDir + path.delimiter + existing : analyzerDir,

@@ -6,7 +6,7 @@ import os
 from dataclasses import dataclass, field
 
 from . import __version__
-from .flow import FlowGraph, build_flow
+from .flow import FlowGraph, build_flow, method_params
 from .ir import Edge, Graph, Meta, Node, SourceRange
 
 MODULE_BASES = {"nn.Module", "torch.nn.Module", "Module"}
@@ -223,8 +223,10 @@ class TemplateIndex:
                    and n.name != "forward" and not n.name.startswith("__")}
         forward = _method(cls, "forward")
         if forward is not None:
-            tpl.flow = build_flow(forward, attrs, set(helpers))
-        tpl.methods = {name: build_flow(fn, attrs, set(helpers)) for name, fn in helpers.items()}
+            tpl.flow = build_flow(forward, attrs, {name: [a.arg for a in method_params(fn)]
+                                                   for name, fn in helpers.items()})
+        signatures = {name: [a.arg for a in method_params(fn)] for name, fn in helpers.items()}
+        tpl.methods = {name: build_flow(fn, attrs, signatures) for name, fn in helpers.items()}
         return tpl
 
     def _collect_submodules(self, info: _FileInfo, cls: ast.ClassDef) -> list[SubmoduleDecl]:
@@ -247,10 +249,17 @@ class TemplateIndex:
             else:
                 continue
             attr = _self_attr(target)
-            if attr is None or attr in seen or not isinstance(value, ast.Call):
+            if attr is None or attr in seen:
                 continue
-            decl = self._decl_from_builder(info, cls, attr, value) or self._decl(
-                info, attr, value, accept_unresolved=attr in called)
+            # `self.norm = nn.BatchNorm1d(4) if use_bn else nn.Identity()`: either call may build it
+            calls = ([value.body, value.orelse] if isinstance(value, ast.IfExp) else [value])
+            decl = None
+            for call in calls:
+                if isinstance(call, ast.Call):
+                    decl = self._decl_from_builder(info, cls, attr, call) or self._decl(
+                        info, attr, call, accept_unresolved=attr in called)
+                    if decl is not None:
+                        break
             if decl is not None:
                 seen.add(attr)
                 out.append(decl)
@@ -344,15 +353,16 @@ def _instantiate_flow(index: TemplateIndex, tpl: ClassTemplate, flow: FlowGraph,
     ids: list[str] = []
     children: list[Node] = []
     for fn in flow.nodes:
-        line, col, end_line, _ = fn.key
+        line, col, _, _ = fn.key
         site = f"{fn.name}@{line}:{col}"
-        source = SourceRange(tpl.file, line, end_line)
+        source = SourceRange(tpl.file, fn.span[0], fn.span[1])
         decl = tpl.decl(fn.target) if fn.kind == "module" else None
         if decl is not None:
             first = decl.attr not in used
             used.add(decl.attr)
+            # later call sites are named after their enclosing node, so every id stays unique
             node = _module_node(index, decl, tpl.file, prefix, stack,
-                                node_id=None if first else prefix + site)
+                                node_id=None if first else f"{parent_id}/{site}")
         elif fn.kind == "group" and fn.target in tpl.methods:
             node = Node(id=f"{parent_id}/{site}", name=fn.name, kind="group", type=fn.name,
                         source=source)

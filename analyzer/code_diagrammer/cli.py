@@ -31,7 +31,7 @@ def _trace(request: dict) -> dict:
     except TraceError as e:
         static.meta.trace_error = f"{e.kind}: {e.message}"
         return {"ok": True, "graph": static.to_dict(), "log": e.log}
-    except Exception as e:  # noqa: BLE001 - never lose the static graph
+    except (Exception, SystemExit) as e:  # noqa: BLE001 - never lose the static graph
         static.meta.trace_error = f"internal: {type(e).__name__}: {e}"
         return {"ok": True, "graph": static.to_dict(), "log": traceback.format_exc()}
 
@@ -54,12 +54,27 @@ def handle(request: dict) -> dict:
         return _error(e.kind, e.message)
     except KeyError as e:
         return _error("bad-request", f"Missing field: {e.args[0]}")
-    except Exception as e:  # noqa: BLE001
+    except (Exception, SystemExit) as e:  # noqa: BLE001
         return _error("internal", f"{type(e).__name__}: {e}", traceback.format_exc())
 
 
+def _take_stdout():
+    """Keep the real stdout for the response and point file descriptor 1 at stderr.
+
+    Python's `print`, but also child processes and C extensions, then write to stderr and
+    can never corrupt the JSON response.
+    """
+    try:
+        sys.stdout.flush()
+        saved = os.dup(1)
+        os.dup2(2, 1)
+        return os.fdopen(saved, "wb")
+    except OSError:
+        return sys.stdout.buffer
+
+
 def main() -> int:
-    out = sys.stdout.buffer
+    out = _take_stdout()
     sys.stdout = sys.stderr  # anything user code prints must not corrupt the response
     try:
         request = json.loads(sys.stdin.buffer.read().decode("utf-8"))

@@ -166,3 +166,66 @@ test("save of a different file is ignored", async () => {
   await s.controller.onFileSaved(path.join(s.root, "other.py"));
   expect(s.calls.length).toBe(before);
 });
+
+test("a slow older request cannot overwrite a newer graph", async () => {
+  const s = setup();
+  const named = (name: string) => { const g = graph("static"); g.root.name = name; return g; };
+  let release!: () => void;
+  const gate = new Promise<void>((r) => { release = r; });
+  let n = 0;
+  const controller = new DiagramController({
+    listClasses: async () => ok([cls("Net")]),
+    analyzeStatic: async () => {
+      const k = n++;
+      if (k === 1) { await gate; return ok(named("Old")); }
+      return ok(named(k === 0 ? "Base" : "New"));
+    },
+    trace: async () => ok(graph("traced")),
+  }, { isTrusted: () => true, pickClass: async () => undefined, post: (m) => s.posts.push(m),
+       openConfigFile: async () => undefined }, s.root);
+  saveEntry(s.root, s.file, { className: "Net", ctorKwargs: {}, inputs: {} });
+  await controller.open(s.file);
+  const slow = controller.onFileSaved(s.file);
+  await controller.onFileSaved(s.file);
+  release();
+  await slow;
+  expect(controller.graph?.root.name).toBe("New");
+  const names = s.posts.flatMap((p) => (p.type === "graph" ? [p.graph.root.name] : []));
+  expect(names).toEqual(["Base", "New"]);
+});
+
+test("a disposed controller posts nothing more", async () => {
+  const s = setup();
+  saveEntry(s.root, s.file, { className: "Net", ctorKwargs: {}, inputs: {} });
+  const pending = s.controller.open(s.file);
+  s.controller.dispose();
+  await pending;
+  expect(s.posts).toEqual([]);
+});
+
+test("a failed open does not take over the file the saved diagram belongs to", async () => {
+  const s = setup();
+  await s.controller.open(s.file);
+  const other = path.join(s.root, "other.py");
+  const failing = new DiagramController({
+    listClasses: async () => fail("syntax"),
+    analyzeStatic: async () => fail("syntax"),
+    trace: async () => fail("syntax"),
+  }, { isTrusted: () => true, pickClass: async () => undefined, post: () => undefined,
+       openConfigFile: async () => undefined }, s.root);
+  await failing.open(other);
+  expect(failing.openFile).toBeUndefined();
+});
+
+test("saving a file whose class is a node of the graph refreshes the diagram", async () => {
+  const s = setup();
+  const g = graph("static");
+  const imported = path.join(s.root, "blocks.py");
+  g.root.children = [{ ...g.root, id: "enc", name: "enc", source: { file: imported, startLine: 1, endLine: 5 } }];
+  const t = setup({ staticResults: [ok(g)] });
+  g.root.children[0].source = { file: path.join(t.root, "blocks.py"), startLine: 1, endLine: 5 };
+  await t.controller.open(t.file);
+  const before = t.calls.length;
+  await t.controller.onFileSaved(path.join(t.root, "blocks.py"));
+  expect(t.calls.length).toBe(before + 1);
+});

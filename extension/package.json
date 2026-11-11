@@ -12,6 +12,7 @@
   "capabilities": {
     "untrustedWorkspaces": {
       "supported": "limited",
+      "restrictedConfigurations": ["codeDiagrammer.pythonPath"],
       "description": "Tracing shapes runs your model code and is disabled in untrusted workspaces."
     }
   },

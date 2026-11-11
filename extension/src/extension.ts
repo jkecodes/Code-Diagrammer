@@ -81,7 +81,7 @@ async function open(context: vscode.ExtensionContext): Promise<void> {
 
   const seconds = vscode.workspace.getConfiguration("codeDiagrammer").get<number>("traceTimeoutSeconds", 60);
   const client = new AnalyzerClient({
-    pythonPath: pythonPath(),
+    pythonPath,
     analyzerDir: path.join(context.extensionPath, "python"),
     timeoutMs: Math.max(1, seconds) * 1000,
   });
@@ -91,6 +91,7 @@ async function open(context: vscode.ExtensionContext): Promise<void> {
     post: (message) => panel.post(message),
     openConfigFile,
   };
+  controller?.dispose();
   controller = new DiagramController(client, host, workspaceRoot);
   await controller.open(document.fileName);
 }

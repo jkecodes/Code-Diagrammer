@@ -6,6 +6,7 @@ from its static template; only nodes that actually executed are kept.
 from __future__ import annotations
 
 import os
+from types import SimpleNamespace
 
 from . import __version__
 from .flow import FlowGraph
@@ -44,8 +45,9 @@ class _Builder:
     # -- modules ---------------------------------------------------------------------
 
     def module(self, path: str, name: str, node_id: str, fallback_source: SourceRange | None = None,
-               chain: list[str] | None = None) -> Node:
+               chain: list[str] | None = None, blank: bool = False) -> Node:
         info = self.infos[path]
+        blank = blank or info.varies  # reused with changing shapes: inner numbers can't be right
         tpl = self.template(info)
         node = Node(id=node_id, name=name, kind="module", type=info.type, params=info.params,
                     trainable_params=info.trainable_params,
@@ -53,20 +55,22 @@ class _Builder:
         prefix = "" if node_id == "root" else node_id + "."
         if tpl is not None and tpl.flow is not None:
             used: set[str] = set()
-            node.children, node.edges, _ = self.flow(tpl, tpl.flow, path, node_id, prefix, used, ())
+            node.children, node.edges, _ = self.flow(tpl, tpl.flow, path, node_id, prefix, used, (),
+                                                     blank)
             for child_path in self.children_of.get(path, []):
                 attr = child_path.rsplit(".", 1)[-1]
                 if attr not in used:
                     decl = tpl.decl(attr)
                     src = SourceRange(tpl.file, decl.line, decl.line) if decl else None
-                    node.children.append(self.module(child_path, attr, prefix + attr, src))
+                    node.children.append(self.module(child_path, attr, prefix + attr, src,
+                                                     blank=blank))
         elif chain is not None or info.type == "Sequential":
             members = chain if chain is not None else self.children_of.get(path, [])
-            self._chain(node, members, prefix, fallback_source)
+            self._chain(node, members, prefix, fallback_source, blank)
         return node
 
     def _chain(self, node: Node, members: list[str], prefix: str,
-               source: SourceRange | None) -> None:
+               source: SourceRange | None, blank: bool = False) -> None:
         previous, previous_info = IN, None
         seen: dict[str, int] = {}
         for member in members:
@@ -74,21 +78,25 @@ class _Builder:
             attr = member.rsplit(".", 1)[-1]
             seen[attr] = seen.get(attr, 0) + 1
             child_id = prefix + attr + (f"#{seen[attr]}" if seen[attr] > 1 else "")
-            node.children.append(self.module(member, attr, child_id, source))
+            node.children.append(self.module(member, attr, child_id, source, blank=blank))
             if previous is IN:
                 shape, dtype = _at(info.in_shapes, 0), None
             else:
                 shape, dtype = _at(previous_info.out_shapes, 0), _at(previous_info.out_dtypes, 0)
+            if blank:
+                shape = dtype = None
             node.edges.append(Edge(previous, child_id, 0, shape, dtype))
             previous, previous_info = child_id, info
         if previous_info is not None:
-            node.edges.append(Edge(previous, OUT, 0, _at(previous_info.out_shapes, 0),
-                                   _at(previous_info.out_dtypes, 0)))
+            shape, dtype = _at(previous_info.out_shapes, 0), _at(previous_info.out_dtypes, 0)
+            if blank:
+                shape = dtype = None
+            node.edges.append(Edge(previous, OUT, 0, shape, dtype))
 
     # -- flows -----------------------------------------------------------------------
 
     def flow(self, tpl: ClassTemplate, flow: FlowGraph, path: str, parent_id: str, prefix: str,
-             used: set[str], method_stack: tuple):
+             used: set[str], method_stack: tuple, blank: bool = False):
         """Returns (children, edges, outputs) where outputs = (shapes, dtypes) of `$out`."""
         info = self.infos[path]
         nodes: list[Node | None] = []
@@ -96,16 +104,17 @@ class _Builder:
         for fn in flow.nodes:
             line, col, end_line, _ = fn.key
             site = f"{fn.name}@{line}:{col}"
-            source = SourceRange(tpl.file, line, end_line)
+            first_line, last_line = fn.span if fn.span != (0, 0) else (line, end_line)
+            source = SourceRange(tpl.file, first_line, last_line)
             node, out = None, (None, None)
             if fn.kind == "module":
-                node, out = self._module_call(tpl, fn, path, prefix, site, used)
+                node, out = self._module_call(tpl, fn, path, parent_id, prefix, site, used, blank)
             elif fn.kind == "group" and fn.target in tpl.methods:
                 if fn.target not in method_stack:
                     group_id = f"{parent_id}/{site}"
                     children, edges, out = self.flow(
                         tpl, tpl.methods[fn.target], path, group_id, prefix, used,
-                        method_stack + (fn.target,))
+                        method_stack + (fn.target,), blank)
                     if children:
                         node = Node(id=group_id, name=fn.name, kind="group", type=fn.name,
                                     source=source, children=children, edges=edges)
@@ -137,7 +146,24 @@ class _Builder:
         edges: list[Edge] = []
         out_shapes: list = []
         out_dtypes: list = []
-        incoming: dict[int, list[Edge]] = {}
+        incoming: dict[int, list[tuple]] = {}  # dst -> [(flow edge, ir edge)]
+        has_in: set = set()
+
+        def add(e, src_id, shape, dtype, uncertain=False):
+            if blank:
+                shape = dtype = None
+            if e.dst == OUT:
+                dst_id = OUT
+                out_shapes.append(shape)
+                out_dtypes.append(dtype)
+            else:
+                dst_id = nodes[e.dst].id
+            edge = Edge(src_id, dst_id, e.out_index, shape, dtype, uncertain)
+            edges.append(edge)
+            has_in.add(e.dst)
+            if e.dst != OUT:
+                incoming.setdefault(e.dst, []).append((e, edge))
+
         for j, e in enumerate(flow.edges):
             if j in ruled_out:
                 continue
@@ -150,25 +176,52 @@ class _Builder:
                     continue
                 src_id = nodes[e.src].id
                 shape, dtype = _at(outs[e.src][0], e.out_index), _at(outs[e.src][1], e.out_index)
-            if e.dst == OUT:
-                dst_id = OUT
-                out_shapes.append(shape)
-                out_dtypes.append(dtype)
-            else:
-                if nodes[e.dst] is None:
+            if e.dst != OUT and nodes[e.dst] is None:
+                continue
+            add(e, src_id, shape, dtype)
+
+        # A node that did not run (or whose call was not matched) must not sever the flow:
+        # reconnect its kept consumers to the kept producers behind it, as uncertain edges.
+        def sources(dst, seen):
+            for j, e in enumerate(flow.edges):
+                if e.dst != dst or j in ruled_out:
                     continue
-                dst_id = nodes[e.dst].id
-            edge = Edge(src_id, dst_id, e.out_index, shape, dtype)
-            edges.append(edge)
-            if e.dst != OUT:
-                incoming.setdefault(e.dst, []).append(edge)
+                if e.src == IN or nodes[e.src] is not None:
+                    yield e
+                elif e.src not in seen:
+                    yield from sources(e.src, seen | {e.src})
+
+        targets = [i for i, n in enumerate(nodes) if n is not None] + [OUT]
+        for dst in targets:
+            if dst in has_in:
+                continue
+            done: set = set()
+            for e in sources(dst, set()):
+                key = (e.src, e.out_index)
+                if key in done:
+                    continue
+                done.add(key)
+                if e.src == IN:
+                    src_id, shape, dtype = IN, _at(info.in_shapes, e.out_index), None
+                    if method_stack:
+                        shape = None
+                else:
+                    src_id = nodes[e.src].id
+                    shape, dtype = (_at(outs[e.src][0], e.out_index),
+                                    _at(outs[e.src][1], e.out_index))
+                add(SimpleNamespace(dst=dst, out_index=e.out_index, arg_pos=e.arg_pos),
+                    src_id, shape, dtype, True)
+        order = {n.id: k for k, n in enumerate(x for x in nodes if x is not None)}
+        order[OUT] = len(order)
+        edges.sort(key=lambda ed: order.get(ed.to, len(order)))  # stable: flow order per target
         # give each group's `$in` edges the shapes of the edges entering the group
         for i, node in enumerate(nodes):
             if node is not None and node.kind == "group":
                 entering = incoming.get(i, [])
                 for inner in node.edges:
                     if inner.from_ == IN:
-                        match = _at(entering, inner.out_index) or _at(entering, 0)
+                        match = next((ir for fe, ir in entering if fe.arg_pos == inner.out_index),
+                                     None)
                         if match is not None:
                             inner.shape, inner.dtype = match.shape, match.dtype
         return [n for n in nodes if n is not None], edges, (out_shapes, out_dtypes)
@@ -179,8 +232,8 @@ class _Builder:
         info = self.infos.get(recs[0].name) if recs else None
         return info.in_shapes if info else None
 
-    def _module_call(self, tpl: ClassTemplate, fn, path: str, prefix: str, site: str,
-                     used: set[str]):
+    def _module_call(self, tpl: ClassTemplate, fn, path: str, parent_id: str, prefix: str,
+                     site: str, used: set[str], blank: bool = False):
         recs = self.records.get((path, fn.key, "module"))
         attr = fn.target
         child_path = f"{path}.{attr}" if path else attr
@@ -188,12 +241,12 @@ class _Builder:
             return None, (None, None)
         first = attr not in used
         used.add(attr)
-        node_id = prefix + attr if first else prefix + site
+        node_id = prefix + attr if first else f"{parent_id}/{site}"
         decl = tpl.decl(attr)
         source = SourceRange(tpl.file, decl.line, decl.line) if decl else None
         called = [r.name for r in recs]
         chain = None if all(c == child_path for c in called) else called
-        node = self.module(child_path, attr, node_id, source, chain=chain)
+        node = self.module(child_path, attr, node_id, source, chain=chain, blank=blank)
         return node, (recs[-1].out_shapes, recs[-1].out_dtypes)
 
 

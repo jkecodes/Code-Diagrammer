@@ -36,6 +36,9 @@ class ModuleInfo:
     in_shapes: Shapes | None = None  # first call; None if never called
     out_shapes: Shapes | None = None
     out_dtypes: list | None = None
+    calls: int = 0  # how many times the module ran
+    out_seen: bool = False
+    varies: bool = False  # input or output shapes differed between calls
 
 
 @dataclass
@@ -193,7 +196,7 @@ def _run(torch, cls, ctor_kwargs: dict, inputs: dict, device: str, ws: _Workspac
             model = cls(**ctor_kwargs)
         model = model.to(device)
         model.eval()
-    except Exception as e:  # noqa: BLE001 - user code can raise anything
+    except (Exception, SystemExit) as e:  # noqa: BLE001 - user code can raise or exit
         raise TraceError("construct", f"{type(e).__name__}: {e}", traceback.format_exc()) from e
 
     result = TraceResult(device=device)
@@ -224,14 +227,37 @@ def _run(torch, cls, ctor_kwargs: dict, inputs: dict, device: str, ws: _Workspac
             f = f.f_back
         return ""
 
+    static_cache: list = []
+
+    def static_codes() -> set:
+        if not static_cache:
+            codes: set = set()
+            for cls in {type(m) for m in model.modules()}:
+                for klass in cls.__mro__:
+                    for attr in vars(klass).values():
+                        if isinstance(attr, (staticmethod, classmethod)):
+                            code = getattr(attr.__func__, "__code__", None)
+                            if code is not None:
+                                codes.add(code)
+            static_cache.append(codes)
+        return static_cache[0]
+
     def user_frame(frame):
-        """Nearest workspace frame above `frame`, unless a module call lies in between."""
+        """The user-code method of a module that is running the operation in `frame`.
+
+        Plain helper functions (and third-party wrappers) are skipped, so their operations belong
+        to the call site inside the method. Stops at a torch module call: that op is torch's own.
+        """
         f = frame
         while f is not None:
             name = f.f_code.co_filename
             if ws.contains(name):
-                return f
-            if _is_module_py(name):
+                owner = f.f_locals.get("self")
+                if owner is not None and id(owner) in paths:
+                    return f
+                if f.f_code in static_codes():  # a static/class method of a traced module
+                    return f
+            elif _is_module_py(name):
                 return None
             f = f.f_back
         return None
@@ -243,10 +269,14 @@ def _run(torch, cls, ctor_kwargs: dict, inputs: dict, device: str, ws: _Workspac
         if path is None:
             return
         info = infos[path]
-        if info.in_shapes is None:
-            values = [*args, *kwargs.values()]
-            info.in_shapes = [[int(d) for d in v.shape] if isinstance(v, torch.Tensor) else None
-                              for v in values]
+        values = [*args, *kwargs.values()]
+        in_shapes = [[int(d) for d in v.shape] if isinstance(v, torch.Tensor) else None
+                     for v in values]
+        if info.calls == 0:
+            info.in_shapes = in_shapes
+        elif in_shapes != info.in_shapes:
+            info.varies = True
+        info.calls += 1
         f = sys._getframe(1)
         while f is not None and _is_module_py(f.f_code.co_filename):
             f = f.f_back
@@ -265,8 +295,10 @@ def _run(torch, cls, ctor_kwargs: dict, inputs: dict, device: str, ws: _Workspac
             return
         shapes, dtypes = _shapes(torch, output)
         info = infos[path]
-        if info.out_shapes is None:
-            info.out_shapes, info.out_dtypes = shapes, dtypes
+        if not info.out_seen:
+            info.out_shapes, info.out_dtypes, info.out_seen = shapes, dtypes, True
+        elif shapes != info.out_shapes:
+            info.varies = True
         stack = pending.get(id(module))
         record = stack.pop() if stack else None
         if record is not None:
@@ -297,7 +329,7 @@ def _run(torch, cls, ctor_kwargs: dict, inputs: dict, device: str, ws: _Workspac
             model(*bound.args, **bound.kwargs)
     except TraceError:
         raise
-    except Exception as e:  # noqa: BLE001
+    except (Exception, SystemExit) as e:  # noqa: BLE001
         raise TraceError("forward", f"{type(e).__name__}: {e}", traceback.format_exc()) from e
     finally:
         for h in handles:
@@ -322,7 +354,7 @@ def trace(file: str, entry: str, ctor_kwargs: dict, inputs: dict, device: str = 
             raise TraceError("import", f"Tracing shapes needs torch 2.0 or newer; found {torch.__version__}")
         try:
             module = _import_user_file(path, root)
-        except Exception as e:  # noqa: BLE001
+        except (Exception, SystemExit) as e:  # noqa: BLE001
             raise TraceError("import", f"{type(e).__name__}: {e}", traceback.format_exc()) from e
         cls = getattr(module, entry, None)
         if cls is None:

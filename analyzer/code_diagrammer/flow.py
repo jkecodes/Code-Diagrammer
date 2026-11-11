@@ -29,14 +29,16 @@ class FlowNode:
     target: str | None  # submodule attr (module) or method name (group)
     shape_only: bool
     conditional: bool
+    span: tuple[int, int] = (0, 0)  # first and last source line of the expression
 
 
 @dataclass
 class FlowEdge:
     src: object  # node index or "$in"
     dst: object  # node index or "$out"
-    out_index: int
+    out_index: int  # which output of `src` is used
     uncertain: bool
+    arg_pos: int | None = None  # for edges into a helper-method call: which parameter receives it
 
 
 @dataclass
@@ -46,7 +48,21 @@ class FlowGraph:
     edges: list[FlowEdge] = field(default_factory=list)
 
 
+def call_key(call: ast.Call) -> Key:
+    """The position CPython reports for this call's CALL instruction.
+
+    A method call whose receiver and attribute name are on different lines (a multi-line chain)
+    starts at the attribute name, not at the receiver.
+    """
+    f = call.func
+    if isinstance(f, ast.Attribute) and f.value.end_lineno != f.end_lineno:
+        return (f.end_lineno, f.end_col_offset - len(f.attr), call.end_lineno, call.end_col_offset)
+    return (call.lineno, call.col_offset, call.end_lineno, call.end_col_offset)
+
+
 def _key(n: ast.AST) -> Key:
+    if isinstance(n, ast.Call):
+        return call_key(n)
     return (n.lineno, n.col_offset, n.end_lineno, n.end_col_offset)
 
 
@@ -83,9 +99,9 @@ def method_params(fn: ast.FunctionDef) -> list[ast.arg]:
 
 
 class FlowBuilder:
-    def __init__(self, fn: ast.FunctionDef, submodules: set[str], methods: set[str]):
+    def __init__(self, fn: ast.FunctionDef, submodules: set[str], methods: dict[str, list[str]]):
         self.submodules = submodules
-        self.methods = methods
+        self.methods = methods  # helper method name -> its parameter names (without self)
         self.alias: dict[str, str] = {}  # local variable -> submodule attr
         self.lists: set[str] = set()  # local variables holding a Python list of tensors
         params = method_params(fn)
@@ -105,23 +121,28 @@ class FlowBuilder:
 
     # -- nodes and edges -------------------------------------------------------------
 
-    def _connect(self, dst: object, cond: bool, groups: list[list[Value]]) -> None:
+    def _connect(self, dst: object, cond: bool, groups: list[list[Value]],
+                 positions: list[int | None] | None = None) -> None:
         """`groups` holds one value list per operand; several producers for one operand = uncertain."""
         seen = set()
-        for values in groups:
+        for gi, values in enumerate(groups):
             multi = len(values) > 1
+            pos = positions[gi] if positions is not None else None
             for src, out_index in values:
-                if (src, out_index) in seen:
+                if (src, out_index, pos) in seen:
                     continue
-                seen.add((src, out_index))
+                seen.add((src, out_index, pos))
                 src_cond = src != IN and self.graph.nodes[src].conditional
-                self.graph.edges.append(FlowEdge(src, dst, out_index, cond or multi or src_cond))
+                self.graph.edges.append(
+                    FlowEdge(src, dst, out_index, cond or multi or src_cond, pos))
 
-    def _make(self, expr, kind, name, target, operand_groups: list[list[Value]], cond) -> list[Value]:
+    def _make(self, expr, kind, name, target, operand_groups: list[list[Value]], cond,
+              positions: list[int | None] | None = None) -> list[Value]:
         idx = len(self.graph.nodes)
         self.graph.nodes.append(FlowNode(_key(expr), kind, name, target,
-                                         kind == "op" and name in SHAPE_ONLY, cond))
-        self._connect(idx, cond, operand_groups)
+                                         kind == "op" and name in SHAPE_ONLY, cond,
+                                         (expr.lineno, expr.end_lineno)))
+        self._connect(idx, cond, operand_groups, positions)
         return [(idx, 0)]
 
     # -- expressions -----------------------------------------------------------------
@@ -130,6 +151,28 @@ class FlowBuilder:
         groups = [self._eval(a, cond) for a in call.args]
         groups += [self._eval(k.value, cond) for k in call.keywords]
         return [g for g in groups if g]
+
+    def _args_with_positions(self, call: ast.Call, cond: bool, params: list[str]):
+        """Like `_args`, but also says which parameter of the callee each operand feeds."""
+        groups: list[list[Value]] = []
+        positions: list[int | None] = []
+        for i, a in enumerate(call.args):
+            values = self._eval(a, cond)
+            if values:
+                groups.append(values)
+                positions.append(i)
+        for k in call.keywords:
+            values = self._eval(k.value, cond)
+            if values:
+                groups.append(values)
+                positions.append(params.index(k.arg) if k.arg in params else None)
+        return groups, positions
+
+    def _is_function_path(self, dotted: str) -> bool:
+        """`nn.functional.relu`, `einops.rearrange`: a dotted name that is not a local value."""
+        head = dotted.split(".")[0]
+        return (head != "self" and head not in self.env and head not in self.alias
+                and head not in self.lists)
 
     def _eval(self, e: ast.AST, cond: bool) -> list[Value]:
         if isinstance(e, ast.Name):
@@ -170,6 +213,13 @@ class FlowBuilder:
             return _sort_values(out)
         if isinstance(e, ast.Starred):
             return self._eval(e.value, cond)
+        if isinstance(e, ast.Dict):
+            out = []
+            for key, value in zip(e.keys, e.values):
+                if key is not None:
+                    self._eval(key, cond)
+                out += self._eval(value, cond)
+            return _sort_values(out)
         if isinstance(e, ast.IfExp):
             self._eval(e.test, cond)
             return _sort_values(self._eval(e.body, True) + self._eval(e.orelse, True))
@@ -205,16 +255,21 @@ class FlowBuilder:
         if isinstance(func, ast.Name) and func.id in self.alias:
             return self._make(e, "module", self.alias[func.id], self.alias[func.id],
                               self._args(e, cond), cond)
+        # `self.blocks[i](x)`: some member of a container submodule is called
+        if isinstance(func, ast.Subscript) and _self_attr(func.value) in self.submodules:
+            container = _self_attr(func.value)
+            self._eval(func.slice, cond)
+            return self._make(e, "module", container, container, self._args(e, cond), cond)
         if attr is not None:
+            if attr in self.methods:
+                groups, positions = self._args_with_positions(e, cond, self.methods[attr])
+                return self._make(e, "group", attr, attr, groups, cond, positions)
             groups = self._args(e, cond)
             if attr in self.submodules:
                 return self._make(e, "module", attr, attr, groups, cond)
-            if attr in self.methods:
-                # keep positional structure: one group per argument, in order
-                return self._make(e, "group", attr, attr, groups, cond)
             return self._make(e, "op", attr, None, groups, cond) if groups else []
         dotted = _dotted(func)
-        if dotted and (dotted.startswith("torch.") or dotted.startswith("F.")):
+        if dotted and "." in dotted and self._is_function_path(dotted):
             groups = self._args(e, cond)
             return self._make(e, "op", dotted.split(".")[-1], None, groups, cond) if groups else []
         if (isinstance(func, ast.Attribute) and isinstance(func.value, ast.Name)

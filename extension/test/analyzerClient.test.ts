@@ -65,3 +65,19 @@ test("syntax error is passed through", async () => {
   });
   expect(!r.ok && r.error.kind).toBe("syntax");
 });
+
+test("runs with the analyzer folder as working directory", async () => {
+  const dir = path.resolve(__dirname, "fixtures");
+  const r = await make({ analyzerDir: dir, moduleName: "cwdprobe" }).listClasses(cnn);
+  const cwd = r.ok ? (r.value as unknown as string[])[0] : "";
+  expect(path.resolve(cwd).toLowerCase()).toBe(dir.toLowerCase());
+});
+
+test("the python path is resolved for every request", async () => {
+  let current = "no-such-python-xyz";
+  const client = make({ pythonPath: () => current });
+  const first = await client.listClasses(cnn);
+  expect(!first.ok && first.error.kind).toBe("python-not-found");
+  current = PY;
+  expect((await client.listClasses(cnn)).ok).toBe(true);
+});
