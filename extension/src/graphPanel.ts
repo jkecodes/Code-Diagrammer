@@ -84,6 +84,12 @@ export class GraphPanel {
 <body>
 <div id="toolbar">
   <span id="title"></span>
+  <span class="segmented" role="group" aria-label="View">
+    <button id="viewCode" class="secondary" aria-pressed="true" title="The model as it is written in the code">Code</button>
+    <button id="viewPaper" class="secondary" aria-pressed="false" title="Blocks grouped into named stages by the language model">Paper</button>
+  </span>
+  <button id="regroup" class="secondary" title="Ask the language model to group the blocks again" aria-label="Regenerate the paper view">↻</button>
+  <span id="busy" aria-live="polite"></span>
   <label><input type="checkbox" id="showShapeOps"> Show reshape ops</label>
   <button id="fit" class="secondary">Fit</button>
   <button id="trace">Trace Shapes</button>

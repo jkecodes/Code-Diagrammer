@@ -7,7 +7,7 @@ architecture diagram with tensor shapes.
   forward pass and records shapes. It speaks JSON over stdin/stdout (`python -m code_diagrammer`).
 - `extension/`: the VS Code extension. It runs the analyzer as a subprocess and draws the result in a
   Webview panel. See `extension/README.md` for usage.
-- `docs/superpowers/`: design spec and implementation plan.
+- `docs/superpowers/`: design specs and implementation plans.
 
 ## Development
 
@@ -20,7 +20,7 @@ cd extension
 npm install
 npm test
 npm run build
-npm run package      # produces code-diagrammer-0.1.0.vsix
+npm run package      # produces code-diagrammer-0.2.0.vsix
 ```
 
 The acceptance tests in `analyzer/tests/test_fastsde.py` and `test_mdctgan.py` need the two repos cloned

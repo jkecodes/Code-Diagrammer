@@ -34,9 +34,14 @@ export const PICK_PROJECT_MODEL = "Main models of this project — pick one to o
 export const REGENERATE = "↻ Ask the language model again";
 export const MODEL_SET = (name: string) => "Code Diagrammer will use " + name + ".";
 
+export const GROUPING = "Grouping blocks with the language model…";
+export const GROUPING_FAILED = (reason: string) =>
+  "The language model's grouping could not be used (" + reason + "). Showing the code view.";
+
 export const ACTION_LABELS = {
   trace: "Trace Shapes",
   copyLog: "Copy log",
   editInputs: "Edit inputs",
   selectPython: "Set Python path",
+  chooseModel: "Choose model",
 } as const;

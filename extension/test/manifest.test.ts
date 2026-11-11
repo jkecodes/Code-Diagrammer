@@ -15,3 +15,9 @@ test("language-model commands and the model setting are declared", () => {
   expect(commands).toContain("codeDiagrammer.scanProject");
   expect(manifest.contributes.configuration.properties["codeDiagrammer.llm.model"].default).toBe("");
 });
+
+test("the paper view command is declared", () => {
+  const commands = manifest.contributes.commands.map((c: { command: string }) => c.command);
+  expect(commands).toContain("codeDiagrammer.togglePaperView");
+  expect(manifest.version).toBe("0.2.0");
+});

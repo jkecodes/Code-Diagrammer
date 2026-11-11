@@ -37,6 +37,8 @@ const graph = () => {
 beforeAll(async () => {
   document.body.innerHTML = `
     <div id="toolbar"><span id="title"></span>
+      <button id="viewCode"></button><button id="viewPaper"></button><button id="regroup"></button>
+      <span id="busy"></span>
       <input type="checkbox" id="showShapeOps"><button id="fit"></button><button id="trace"></button></div>
     <div id="notice" hidden></div>
     <div id="main"><svg id="diagram" xmlns="http://www.w3.org/2000/svg"></svg><aside id="details"></aside></div>
@@ -129,4 +131,98 @@ test("the title shows total and trainable parameters", async () => {
   next.root.trainableParams = 75809;
   post({ type: "graph", graph: next });
   await until(() => document.getElementById("title")!.textContent!.includes("339K params (75.8K trainable)"));
+});
+
+// ---- paper view ----
+
+const paper = () => {
+  const code = graph();
+  const [stem, view, blocks] = code.root.children;
+  const concept = n("root/concept:0", {
+    name: "Feature Stem", kind: "concept", type: "concept", description: "Extracts features.",
+    source: stem.source, children: [stem, view],
+    edges: [e("$in", "stem", [2, 3, 4, 4]), e("stem", "root/view@9:8", [2, 8, 1, 1]), e("root/view@9:8", "$out", [2, 8])],
+  });
+  const out = g([concept, blocks], [
+    e("$in", "root/concept:0", [2, 3, 4, 4]), e("root/concept:0", "blocks", [2, 8]), e("blocks", "$out", [2, 8]),
+  ]);
+  out.root.params = 1322;
+  return out;
+};
+const pressed = (id: string) => document.getElementById(id)!.getAttribute("aria-pressed");
+
+test("toggle to Paper without a grouping asks the host", async () => {
+  post({ type: "graph", graph: graph() });
+  await until(() => ids().includes("stem"));
+  sent.length = 0;
+  document.getElementById("viewPaper")!.click();
+  expect(sent).toEqual([{ type: "requestPaper", regenerate: false }]);
+  expect(ids()).toContain("stem"); // still the code view while waiting
+});
+
+test("the busy message is shown next to the toggle", () => {
+  post({ type: "busy", text: "Grouping…" });
+  expect(document.getElementById("busy")!.textContent).toBe("Grouping…");
+  post({ type: "busy", text: null });
+  expect(document.getElementById("busy")!.textContent).toBe("");
+});
+
+test("the paper graph arrives after the request: concept nodes are drawn", async () => {
+  post({ type: "paper", graph: paper() });
+  await until(() => ids().includes("root/concept:0"));
+  expect(ids()).toEqual(["root/concept:0", "blocks"]);
+  expect([pressed("viewPaper"), pressed("viewCode")]).toEqual(["true", "false"]);
+  expect(svg().querySelector('g.node[data-id="root/concept:0"]')!.classList.contains("node-concept")).toBe(true);
+});
+
+test("a concept shows its description; double click opens the first member's source", () => {
+  fire(svg().querySelector('g.node[data-id="root/concept:0"]')!, "click");
+  expect(document.getElementById("details")!.textContent).toContain("Extracts features.");
+  fire(svg().querySelector('g.node[data-id="root/concept:0"]')!, "dblclick");
+  expect(sent.at(-1)).toEqual({ type: "openSource", source: { file: FILE, startLine: 5, endLine: 5 } });
+});
+
+test("the cursor lights a collapsed concept when a member matches", () => {
+  post({ type: "cursor", file: FILE, line: 5 });
+  expect(svg().querySelector('g.node[data-id="root/concept:0"]')!.classList.contains("cursor")).toBe(true);
+});
+
+test("Code and Paper switch without asking the host again", async () => {
+  sent.length = 0;
+  document.getElementById("viewCode")!.click();
+  await until(() => ids().includes("stem") && !ids().includes("root/concept:0"));
+  document.getElementById("viewPaper")!.click();
+  await until(() => ids().includes("root/concept:0"));
+  expect(sent).toEqual([]);
+});
+
+test("regenerate asks with regenerate:true", () => {
+  sent.length = 0;
+  document.getElementById("regroup")!.click();
+  expect(sent).toEqual([{ type: "requestPaper", regenerate: true }]);
+});
+
+test("a new graph falls back to the code view; a cached paper brings the paper view back", async () => {
+  post({ type: "graph", graph: graph() });
+  await until(() => ids().includes("stem") && !ids().includes("root/concept:0"));
+  expect(pressed("viewCode")).toBe("true");
+  post({ type: "paper", graph: paper() });
+  await until(() => ids().includes("root/concept:0"));
+});
+
+test("after choosing Code, a paper message does not switch the view", async () => {
+  document.getElementById("viewCode")!.click();
+  await until(() => ids().includes("stem"));
+  post({ type: "graph", graph: graph() });
+  post({ type: "paper", graph: paper() });
+  await new Promise((r) => setTimeout(r, 100));
+  expect(ids()).toContain("stem");
+  expect(ids()).not.toContain("root/concept:0");
+});
+
+test("the toggleView message flips the view", async () => {
+  post({ type: "toggleView" });
+  await until(() => ids().includes("root/concept:0"));
+  post({ type: "toggleView" });
+  await until(() => ids().includes("stem") && !ids().includes("root/concept:0"));
 });

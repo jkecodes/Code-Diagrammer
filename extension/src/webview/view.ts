@@ -39,6 +39,10 @@ export function formatParams(n: number | null, trainable: number | null = null):
 
 function labels(node: Node, isRoot: boolean): { label: string; sublabel: string } {
   if (node.repeated) return { label: node.type + " x N", sublabel: "" };
+  if (node.kind === "concept") {
+    const size = formatParams(node.params, node.trainableParams);
+    return { label: node.name, sublabel: node.children.length + " blocks" + (size ? " · " + size : "") };
+  }
   if (node.kind === "module" && !isRoot && node.type !== node.name) {
     return { label: node.name, sublabel: node.type };
   }

@@ -125,3 +125,17 @@ test("formatParams shows trainable parameters when some are frozen", () => {
   expect(formatParams(1322, null)).toBe("1.3K params");
   expect(formatParams(null, null)).toBe("");
 });
+
+test("a concept node shows its name and member count", () => {
+  const concept = n("root/concept:0", {
+    name: "Frequency Pooling", kind: "concept", type: "concept", params: 1500, trainableParams: 1500,
+    children: [op("m", "mean"), op("a", "amax"), n("fc")],
+    edges: [e("$in", "m"), e("m", "a"), e("a", "fc"), e("fc", "$out")],
+  });
+  const v = buildView(g([concept, n("head")], [e("$in", "root/concept:0"), e("root/concept:0", "head"), e("head", "$out")]), state());
+  const drawn = v.children.find((c) => c.id === "root/concept:0")!;
+  expect([drawn.label, drawn.sublabel, drawn.kind, drawn.expandable, drawn.expanded])
+    .toEqual(["Frequency Pooling", "3 blocks · 1.5K params", "concept", true, false]);
+  const bare = buildView(g([{ ...concept, params: null, trainableParams: null }, n("head")], []), state());
+  expect(bare.children[0].sublabel).toBe("3 blocks");
+});

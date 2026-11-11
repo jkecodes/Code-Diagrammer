@@ -9,6 +9,7 @@
   --module: var(--vscode-charts-blue, #3794ff);
   --op: var(--vscode-charts-green, #89d185);
   --group: var(--vscode-charts-purple, #b180d7);
+  --concept: var(--vscode-charts-green, #89d185);
   --warn: var(--vscode-editorWarning-foreground, #cca700);
   --error: var(--vscode-editorError-foreground, #f14c4c);
 }
@@ -102,6 +103,7 @@ button.secondary:hover { background: var(--vscode-button-secondaryHoverBackgroun
 .node .shape { fill: var(--surface); stroke: var(--module); stroke-width: 1.2; }
 .node-op > .shape { stroke: var(--op); }
 .node-group > .shape { stroke: var(--group); stroke-dasharray: 5 3; }
+.node-concept > .shape { stroke: var(--concept); stroke-width: 1.6; stroke-dasharray: 9 4; }
 .node.expanded > .shape { fill: transparent; }
 .node:hover > .shape { stroke-width: 2; }
 .node.selected > .shape { stroke: var(--focus); stroke-width: 2.4; }
@@ -162,3 +164,14 @@ button.secondary:hover { background: var(--vscode-button-secondaryHoverBackgroun
 @media (max-width: 520px) {
   #details { display: none; }
 }
+
+/* Code / Paper view toggle */
+.segmented { display: inline-flex; }
+.segmented button { border-radius: 0; margin: 0; }
+.segmented button:first-child { border-radius: 3px 0 0 3px; }
+.segmented button:last-child { border-radius: 0 3px 3px 0; }
+.segmented button[aria-pressed="true"] {
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+}
+#busy { font-size: 0.9em; opacity: 0.8; }

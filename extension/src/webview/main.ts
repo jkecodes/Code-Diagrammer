@@ -18,12 +18,25 @@ const title = document.getElementById("title") as HTMLElement;
 const menu = document.getElementById("menu") as HTMLElement;
 const showShapeOps = document.getElementById("showShapeOps") as HTMLInputElement;
 
-let graph: Graph | null = null;
+type Mode = "code" | "paper";
+
+let codeGraph: Graph | null = null;
+let paperGraph: Graph | null = null; // the paper view of codeGraph, when the host has sent one
+let mode: Mode = "code";
+let wantPaper = false; // the user's preference; the paper view is shown whenever one is available
+let graph: Graph | null = null; // the graph that is drawn: codeGraph or paperGraph
 let view: VNode | null = null;
 let laid: Laid | null = null;
 let selectedId: string | null = null;
 let cursor: { file: string; line: number } | null = null;
-const state: ViewState = { expanded: new Set(), showShapeOps: false };
+const states: Record<Mode, ViewState> = {
+  code: { expanded: new Set(), showShapeOps: false },
+  paper: { expanded: new Set(), showShapeOps: false },
+};
+let state: ViewState = states.code;
+const viewCode = document.getElementById("viewCode") as HTMLButtonElement;
+const viewPaper = document.getElementById("viewPaper") as HTMLButtonElement;
+const busy = document.getElementById("busy") as HTMLElement;
 let viewBox = { x: 0, y: 0, width: 800, height: 400 };
 let renderToken = 0;
 
@@ -102,13 +115,37 @@ function openSource(id: string): void {
   if (source) send({ type: "openSource", source });
 }
 
-function setGraph(next: Graph): void {
-  const first = graph === null || graph.meta.entry.className !== next.meta.entry.className
-    || graph.meta.entry.file !== next.meta.entry.file;
-  graph = next;
-  const ids = allIds(next.root);
+/** Draws the code view or the paper view. Falls back to the code view without a paper graph. */
+function show(next: Mode, refit: boolean): void {
+  mode = next === "paper" && paperGraph ? "paper" : "code";
+  graph = mode === "paper" ? paperGraph : codeGraph;
+  state = states[mode];
+  viewCode.setAttribute("aria-pressed", String(mode === "code"));
+  viewPaper.setAttribute("aria-pressed", String(mode === "paper"));
+  if (!graph) return;
+  const ids = allIds(graph.root);
   for (const id of [...state.expanded]) if (!ids.has(id)) state.expanded.delete(id);
   if (selectedId && !ids.has(selectedId)) selectedId = null;
+  void render(refit);
+}
+
+function choosePaper(regenerate: boolean): void {
+  wantPaper = true;
+  if (paperGraph && !regenerate) show("paper", true);
+  else send({ type: "requestPaper", regenerate });
+}
+
+function chooseCode(): void {
+  wantPaper = false;
+  if (mode !== "code") show("code", true);
+}
+
+function setGraph(next: Graph): void {
+  const first = codeGraph === null || codeGraph.meta.entry.className !== next.meta.entry.className
+    || codeGraph.meta.entry.file !== next.meta.entry.file;
+  const wasPaper = mode === "paper";
+  codeGraph = next;
+  paperGraph = null; // a grouping belongs to exactly one graph; the host re-sends it if it still applies
 
   title.replaceChildren(next.root.name);
   const meta = document.createElement("span");
@@ -117,7 +154,12 @@ function setGraph(next: Graph): void {
   if (next.meta.mode === "traced") parts.push("shapes traced on " + next.meta.device);
   meta.textContent = parts.filter(Boolean).join(" · ");
   title.appendChild(meta);
-  void render(first);
+  show("code", first || wasPaper);
+}
+
+function setPaper(next: Graph): void {
+  paperGraph = next;
+  if (wantPaper) show("paper", true);
 }
 
 // ---- messages from the extension ----
@@ -127,7 +169,12 @@ window.addEventListener("message", (event: MessageEvent<HostMessage>) => {
   if (message.type === "graph") setGraph(message.graph);
   else if (message.type === "notice") showNotice(message);
   else if (message.type === "clearNotice") showNotice(null);
-  else if (message.type === "cursor") {
+  else if (message.type === "paper") setPaper(message.graph);
+  else if (message.type === "busy") busy.textContent = message.text ?? "";
+  else if (message.type === "toggleView") {
+    if (mode === "paper") chooseCode();
+    else choosePaper(false);
+  } else if (message.type === "cursor") {
     cursor = { file: message.file, line: message.line };
     highlightCursor();
   }
@@ -140,9 +187,13 @@ function showNotice(notice: Notice | null): void {
 // ---- toolbar ----
 
 showShapeOps.addEventListener("change", () => {
-  state.showShapeOps = showShapeOps.checked;
+  states.code.showShapeOps = showShapeOps.checked;
+  states.paper.showShapeOps = showShapeOps.checked;
   void render(false);
 });
+viewCode.addEventListener("click", chooseCode);
+viewPaper.addEventListener("click", () => choosePaper(false));
+document.getElementById("regroup")!.addEventListener("click", () => choosePaper(true));
 document.getElementById("trace")!.addEventListener("click", () => send({ type: "action", action: "trace" }));
 document.getElementById("fit")!.addEventListener("click", fit);
 

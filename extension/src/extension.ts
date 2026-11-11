@@ -5,7 +5,9 @@ import { AnalyzerClient } from "./analyzerClient";
 import { DiagramController, type Host } from "./controller";
 import { configPath, loadEntry, saveEntry } from "./entryConfig";
 import { GraphPanel } from "./graphPanel";
+import * as fs from "node:fs";
 import type { SourceRange } from "./ir";
+import { groupGraph } from "./llm/grouping";
 import { projectModels, type ProjectModel } from "./llm/projectModels";
 import { LlmError, type LlmModel } from "./llm/provider";
 import { LlmService, type LlmHost } from "./llm/service";
@@ -53,6 +55,8 @@ async function runAction(action: NoticeAction): Promise<void> {
     await openConfigFile();
   } else if (action === "selectPython") {
     await vscode.commands.executeCommand("workbench.action.openSettings", "codeDiagrammer.pythonPath");
+  } else if (action === "chooseModel") {
+    await chooseModel();
   }
 }
 
@@ -179,6 +183,15 @@ async function scanProject(context: vscode.ExtensionContext): Promise<void> {
   }
 }
 
+/** Lines `start`..`end` (1-based, inclusive) of a source file; empty when it cannot be read. */
+function readLines(file: string, start: number, end: number): string[] {
+  try {
+    return fs.readFileSync(file, "utf8").split(/\r?\n/).slice(Math.max(0, start - 1), end);
+  } catch {
+    return [];
+  }
+}
+
 async function open(context: vscode.ExtensionContext): Promise<void> {
   const document = vscode.window.activeTextEditor?.document;
   const folder = document ? vscode.workspace.getWorkspaceFolder(document.uri) : undefined;
@@ -191,15 +204,18 @@ async function open(context: vscode.ExtensionContext): Promise<void> {
   const onMessage = (message: WebviewMessage) => {
     if (message.type === "openSource") void openSource(message.source);
     else if (message.type === "action") void runAction(message.action);
+    else if (message.type === "requestPaper") void controller?.requestPaper(message.regenerate);
   };
   const panel = GraphPanel.show(context, onMessage);
 
   const client = makeClient(context);
+  const llm = llmService(context, workspaceRoot);
   const host: Host = {
     isTrusted: () => vscode.workspace.isTrusted,
     pickClass: (names) => Promise.resolve(vscode.window.showQuickPick(names, { placeHolder: M.PICK_CLASS })),
     post: (message) => panel.post(message),
     openConfigFile,
+    group: async (graph, opts) => (await groupGraph(graph, llm, readLines, opts))?.paper,
   };
   controller?.dispose();
   controller = new DiagramController(client, host, workspaceRoot);
@@ -220,6 +236,10 @@ export function activate(context: vscode.ExtensionContext): void {
       await controller.selectEntry();
     }),
     vscode.commands.registerCommand("codeDiagrammer.chooseModel", chooseModel),
+    vscode.commands.registerCommand("codeDiagrammer.togglePaperView", () => {
+      if (GraphPanel.active) GraphPanel.active.post({ type: "toggleView" });
+      else void vscode.window.showInformationMessage(M.NO_DIAGRAM_OPEN);
+    }),
     vscode.commands.registerCommand("codeDiagrammer.scanProject", () => scanProject(context)),
     vscode.workspace.onDidSaveTextDocument((document) => {
       if (document.uri.scheme === "file") void controller?.onFileSaved(document.fileName);

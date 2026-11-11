@@ -2,7 +2,7 @@
   "name": "code-diagrammer",
   "displayName": "Code Diagrammer",
   "description": "See a PyTorch model as an expandable architecture diagram with tensor shapes, inside the editor.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "publisher": "code-diagrammer",
   "license": "MIT",
   "engines": { "vscode": "^1.90.0" },
@@ -22,7 +22,8 @@
       { "command": "codeDiagrammer.traceShapes", "title": "Code Diagrammer: Trace Shapes" },
       { "command": "codeDiagrammer.selectEntry", "title": "Code Diagrammer: Select Entry Model" },
       { "command": "codeDiagrammer.chooseModel", "title": "Code Diagrammer: Choose Language Model" },
-      { "command": "codeDiagrammer.scanProject", "title": "Code Diagrammer: Scan Project Models" }
+      { "command": "codeDiagrammer.scanProject", "title": "Code Diagrammer: Scan Project Models" },
+      { "command": "codeDiagrammer.togglePaperView", "title": "Code Diagrammer: Toggle Paper View" }
     ],
     "menus": {
       "editor/title": [
