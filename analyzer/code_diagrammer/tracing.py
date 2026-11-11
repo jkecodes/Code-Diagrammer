@@ -120,11 +120,15 @@ def _import_user_file(path: str, root: str):
         if parent == directory:
             break
         directory = parent
-    for p in (root, os.path.dirname(path), directory):
+    if len(parts) > 1:
+        # only the package root: the file's own folder could shadow the package name
+        for p in (root, directory):
+            if p not in sys.path:
+                sys.path.insert(0, p)
+        return importlib.import_module(".".join(parts))
+    for p in (root, directory):
         if p not in sys.path:
             sys.path.insert(0, p)
-    if len(parts) > 1:
-        return importlib.import_module(".".join(parts))
     name = "_code_diagrammer_user_" + parts[0]
     spec = importlib.util.spec_from_file_location(name, path)
     module = importlib.util.module_from_spec(spec)

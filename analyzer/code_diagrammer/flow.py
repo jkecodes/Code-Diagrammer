@@ -86,7 +86,8 @@ class FlowBuilder:
     def __init__(self, fn: ast.FunctionDef, submodules: set[str], methods: set[str]):
         self.submodules = submodules
         self.methods = methods
-        self.alias: dict[str, str] = {}  # loop variable -> submodule attr
+        self.alias: dict[str, str] = {}  # local variable -> submodule attr
+        self.lists: set[str] = set()  # local variables holding a Python list of tensors
         params = method_params(fn)
         self.graph = FlowGraph(params=[a.arg for a in params])
         self.env: dict[str, list[Value]] = {}
@@ -153,6 +154,8 @@ class FlowBuilder:
             index = self._eval(e.slice, cond)
             if not value:
                 return []
+            if isinstance(e.value, ast.Name) and e.value.id in self.lists:
+                return value  # picking an element of a list of tensors is not an op
             # constant index into a module/group result selects one of its outputs
             if (len(value) == 1 and value[0][0] != IN and value[0][1] == 0
                     and self.graph.nodes[value[0][0]].kind in ("module", "group")
@@ -188,6 +191,11 @@ class FlowBuilder:
         if isinstance(e, ast.Attribute):
             self._eval(e.value, cond)  # e.g. `self.enc(x).shape`: keep the call's node
             return []
+        if isinstance(e, (ast.ListComp, ast.GeneratorExp, ast.SetComp)):
+            for gen in e.generators:
+                self._eval(gen.iter, cond)
+                self._bind_loop(gen.target, gen.iter)
+            return self._eval(e.elt, True)
         return []
 
     def _call(self, e: ast.Call, cond: bool) -> list[Value]:
@@ -209,6 +217,14 @@ class FlowBuilder:
         if dotted and (dotted.startswith("torch.") or dotted.startswith("F.")):
             groups = self._args(e, cond)
             return self._make(e, "op", dotted.split(".")[-1], None, groups, cond) if groups else []
+        if (isinstance(func, ast.Attribute) and isinstance(func.value, ast.Name)
+                and func.value.id in self.lists):
+            added: list[Value] = []
+            for group in self._args(e, cond):
+                added += group
+            if func.attr in ("append", "extend", "insert"):
+                self.env[func.value.id] = _sort_values(self.env.get(func.value.id, []) + added)
+            return []
         if isinstance(func, ast.Attribute):
             receiver = self._eval(func.value, cond)
             groups = self._args(e, cond)
@@ -252,10 +268,22 @@ class FlowBuilder:
                 evaluated = [self._eval(v, cond) for v in s.value.elts]
                 for t, v in zip(s.targets[0].elts, evaluated):
                     self._assign(t, v, None, cond)
+            elif _self_attr(s.value) in self.submodules and all(
+                    isinstance(t, ast.Name) for t in s.targets):
+                for t in s.targets:  # `m = self.block`: m(...) now calls that submodule
+                    self.env.pop(t.id, None)
+                    self.alias[t.id] = _self_attr(s.value)
             else:
                 values = self._eval(s.value, cond)
+                is_list = isinstance(s.value, (ast.List, ast.ListComp))
                 for t in s.targets:
                     self._assign(t, values, s.value, cond)
+                    if isinstance(t, ast.Name):
+                        if is_list:
+                            self.lists.add(t.id)
+                            self.env[t.id] = values
+                        else:
+                            self.lists.discard(t.id)
         elif isinstance(s, ast.AnnAssign):
             if s.value is not None:
                 self._assign(s.target, self._eval(s.value, cond), s.value, cond)
@@ -263,7 +291,9 @@ class FlowBuilder:
             left = self._eval(s.target, cond) if isinstance(s.target, ast.Name) else []
             right = self._eval(s.value, cond)
             name = BINOPS.get(type(s.op))
-            if (left or right) and name:
+            if isinstance(s.target, ast.Name) and s.target.id in self.lists:
+                self.env[s.target.id] = _sort_values(left + right)  # list += [more tensors]
+            elif (left or right) and name:
                 values = self._make(s, "op", name, None, [g for g in (left, right) if g], cond)
                 self._assign(s.target, values, None, cond)
         elif isinstance(s, ast.Expr):

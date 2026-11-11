@@ -249,11 +249,26 @@ class TemplateIndex:
             attr = _self_attr(target)
             if attr is None or attr in seen or not isinstance(value, ast.Call):
                 continue
-            decl = self._decl(info, attr, value, accept_unresolved=attr in called)
+            decl = self._decl_from_builder(info, cls, attr, value) or self._decl(
+                info, attr, value, accept_unresolved=attr in called)
             if decl is not None:
                 seen.add(attr)
                 out.append(decl)
         return out
+
+    def _decl_from_builder(self, info: _FileInfo, cls: ast.ClassDef, attr: str,
+                           call: ast.Call) -> SubmoduleDecl | None:
+        """`self.x = self.build_x(...)`: use the module that the helper method returns."""
+        builder = _method(cls, _self_attr(call.func) or "")
+        if builder is None:
+            return None
+        for n in _walk_ordered(builder):
+            if isinstance(n, ast.Return) and isinstance(n.value, ast.Call):
+                decl = self._decl(info, attr, n.value, accept_unresolved=False)
+                if decl is not None:
+                    decl.line = call.lineno
+                    return decl
+        return None
 
     def _decl(self, info: _FileInfo, attr: str, call: ast.Call,
               accept_unresolved: bool) -> SubmoduleDecl | None:

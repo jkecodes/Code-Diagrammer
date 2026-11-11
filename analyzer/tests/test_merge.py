@@ -48,3 +48,11 @@ def test_loop_over_modulelist():
 def test_group_input_edge_gets_shape():
     pool = child(traced("simple_cnn.py", "SimpleCNN", {"x": [2, 3, 16, 16]}).root, "pool")
     assert edges(pool) == [("$in", "mean", [2, 8, 16, 16], False), ("mean", "$out", [2, 8], False)]
+
+
+def test_list_pyramid_keeps_only_real_producer():
+    g = traced("pyramid_net.py", "PyramidNet", {"x": [1, 3, 8, 8]})
+    assert edges(g.root) == [
+        ("$in", "down", [1, 3, 8, 8], False), ("down", "body", [1, 3, 4, 4], False),
+        ("body", "head", [1, 4, 4, 4], False), ("head", "$out", [1, 2, 4, 4], False)]
+    assert names(child(g.root, "body")) == ["0", "1", "2"]

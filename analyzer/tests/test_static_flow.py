@@ -37,3 +37,21 @@ def test_helper_method_is_group():
 def test_non_tensor_values_make_no_nodes():
     # `v.shape[0]` and `flag` produce no nodes
     assert "getitem" not in names(graph().root)
+
+
+def pyramid():
+    return build_static_graph(TemplateIndex(str(FIXTURES)),
+                              str(FIXTURES / "pyramid_net.py"), "PyramidNet").root
+
+
+def test_list_variables_and_module_aliases():
+    root = pyramid()
+    assert names(root) == ["down", "body", "head"]
+    assert edges(root) == [
+        ("$in", "down", None, True), ("$in", "body", None, True), ("down", "body", None, True),
+        ("body", "head", None, False), ("head", "$out", None, False)]
+
+
+def test_submodule_built_by_helper_method():
+    head = child(pyramid(), "head")
+    assert head.type == "Sequential" and [c.type for c in head.children] == ["Conv2d"]

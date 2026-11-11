@@ -118,11 +118,28 @@ class _Builder:
             nodes.append(node)
             outs.append(out)
 
+        # A module argument with several possible producers (a list of tensors, a branch):
+        # keep only producers whose shape is one the module really received.
+        ruled_out: set[int] = set()
+        for i, fn in enumerate(flow.nodes):
+            node = nodes[i]
+            if node is None or fn.kind != "module":
+                continue
+            received = [s for s in (self._received(path, fn) or []) if s is not None]
+            candidates = [(j, e) for j, e in enumerate(flow.edges)
+                          if e.dst == i and e.uncertain and (e.src == IN or nodes[e.src] is not None)]
+            shapes = {j: (_at(info.in_shapes, e.out_index) if e.src == IN
+                          else _at(outs[e.src][0], e.out_index)) for j, e in candidates}
+            if received and any(s in received for s in shapes.values()):
+                ruled_out |= {j for j, s in shapes.items() if s not in received}
+
         edges: list[Edge] = []
         out_shapes: list = []
         out_dtypes: list = []
         incoming: dict[int, list[Edge]] = {}
-        for e in flow.edges:
+        for j, e in enumerate(flow.edges):
+            if j in ruled_out:
+                continue
             if e.src == IN:
                 src_id, shape, dtype = IN, _at(info.in_shapes, e.out_index), None
                 if method_stack:
@@ -154,6 +171,12 @@ class _Builder:
                         if match is not None:
                             inner.shape, inner.dtype = match.shape, match.dtype
         return [n for n in nodes if n is not None], edges, (out_shapes, out_dtypes)
+
+    def _received(self, path: str, fn) -> list | None:
+        """Input shapes of the module called at this flow node."""
+        recs = self.records.get((path, fn.key, "module"))
+        info = self.infos.get(recs[0].name) if recs else None
+        return info.in_shapes if info else None
 
     def _module_call(self, tpl: ClassTemplate, fn, path: str, prefix: str, site: str,
                      used: set[str]):
