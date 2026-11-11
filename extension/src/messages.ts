@@ -19,6 +19,12 @@ export const NO_DIAGRAM_OPEN = "Open an architecture diagram first.";
 export const LOG_COPIED = "Log copied to the clipboard.";
 export const PICK_CLASS = "Which model class should the diagram start from?";
 
+export const NO_LANGUAGE_MODEL = "No language model available in this IDE.";
+export const CONSENT = (model: string) =>
+  `Class signatures and code excerpts will be sent to ${model}.`;
+export const CONSENT_YES = "Send";
+export const PICK_MODEL = "Choose the language model Code Diagrammer should use";
+
 export const ACTION_LABELS = {
   trace: "Trace Shapes",
   copyLog: "Copy log",

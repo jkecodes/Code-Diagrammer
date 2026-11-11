@@ -20,7 +20,8 @@
     "commands": [
       { "command": "codeDiagrammer.open", "title": "Code Diagrammer: Open Architecture Diagram" },
       { "command": "codeDiagrammer.traceShapes", "title": "Code Diagrammer: Trace Shapes" },
-      { "command": "codeDiagrammer.selectEntry", "title": "Code Diagrammer: Select Entry Model" }
+      { "command": "codeDiagrammer.selectEntry", "title": "Code Diagrammer: Select Entry Model" },
+      { "command": "codeDiagrammer.chooseModel", "title": "Code Diagrammer: Choose Language Model" }
     ],
     "menus": {
       "editor/title": [
@@ -39,6 +40,11 @@
           "type": "number",
           "default": 60,
           "description": "Stop Trace Shapes after this many seconds."
+        },
+        "codeDiagrammer.llm.model": {
+          "type": "string",
+          "default": "",
+          "description": "Id of the language model (e.g. a Claude or Gemini model offered by this IDE) used for Scan Project Models and the paper view. Empty: you are asked to choose. Use the command \"Code Diagrammer: Choose Language Model\" to pick from the available models."
         }
       }
     }
