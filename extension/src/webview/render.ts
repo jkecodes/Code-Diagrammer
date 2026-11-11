@@ -159,7 +159,7 @@ export function renderDetails(
   container.appendChild(title);
   container.appendChild(row("Type", node.type));
   container.appendChild(row("Kind", node.kind));
-  const params = formatParams(node.params);
+  const params = formatParams(node.params, node.trainableParams);
   if (params) container.appendChild(row("Size", params));
   const shapesIn = inShapes.filter(Boolean);
   const shapesOut = outShapes.filter(Boolean);

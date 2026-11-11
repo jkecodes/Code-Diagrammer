@@ -122,3 +122,11 @@ test("right-click offers Open source and a disabled Ask Claude item", () => {
   expect(sent.at(-1)).toEqual({ type: "openSource", source: { file: FILE, startLine: 5, endLine: 5 } });
   expect(menu.hidden).toBe(true);
 });
+
+test("the title shows total and trainable parameters", async () => {
+  const next = graph();
+  next.root.params = 338977;
+  next.root.trainableParams = 75809;
+  post({ type: "graph", graph: next });
+  await until(() => document.getElementById("title")!.textContent!.includes("339K params (75.8K trainable)"));
+});

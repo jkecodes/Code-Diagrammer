@@ -47,7 +47,7 @@ A tree of nodes plus data-flow edges.
 - `type` (e.g. `MultiheadAttention`, `matmul`)
 - `children`: expandable sub-nodes (hierarchical granularity)
 - `source`: `{file, startLine, endLine}` (used for double-click navigation, and later as LLM context)
-- `params`: parameter-count summary
+- `params`: total parameter count (including frozen parameters), and `trainableParams`: parameters with `requires_grad=True`. The viewer shows both when they differ, e.g. `339K params (75.8K trainable)`.
 
 **Edge**
 - `from`, `to`

@@ -17,3 +17,10 @@ def test_round_trip_uses_json_keys():
     assert d["root"]["edges"][1] == {"from": "fc", "to": "$out", "outIndex": 0,
                                      "shape": [2, 10], "dtype": "float32", "uncertain": False}
     assert Graph.from_dict(d).to_dict() == d
+
+
+def test_trainable_params_round_trip_and_default():
+    node = Node(id="a", name="a", kind="module", type="Linear", params=30, trainable_params=10)
+    assert node.to_dict()["trainableParams"] == 10
+    assert Node.from_dict(node.to_dict()).trainable_params == 10
+    assert Node(id="b", name="b", kind="op", type="add").to_dict()["trainableParams"] is None

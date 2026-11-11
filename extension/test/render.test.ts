@@ -154,3 +154,10 @@ test("applyCursorHighlight sets and clears the cursor class", async () => {
   expect(nodeEl("stem").classList.contains("cursor")).toBe(true);
   expect(nodeEl("fc").classList.contains("cursor")).toBe(false);
 });
+
+test("details show trainable parameters when some are frozen", () => {
+  const el = document.createElement("div");
+  const view = v("stft", { node: n("stft", { params: 263168, trainableParams: 0 }) });
+  renderDetails(el, view, [], []);
+  expect(el.textContent).toContain("263.2K params (0 trainable)");
+});

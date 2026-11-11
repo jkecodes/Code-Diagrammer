@@ -16,7 +16,7 @@ const graph = (mode: "static" | "traced", traceError: string | null = null): Gra
     ctorKwargs: null, inputs: null, device: null, traceError,
   },
   root: {
-    id: "root", name: "Net", kind: "module", type: "Net", source: null, params: null,
+    id: "root", name: "Net", kind: "module", type: "Net", source: null, params: null, trainableParams: null,
     shapeOnly: false, repeated: false, children: [], edges: [],
   },
 });

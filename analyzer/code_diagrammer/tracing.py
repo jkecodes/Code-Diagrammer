@@ -29,7 +29,8 @@ class TraceError(Exception):
 class ModuleInfo:
     path: str  # "" for the root
     type: str
-    params: int
+    params: int  # all parameters, including frozen ones
+    trainable_params: int = 0  # parameters with requires_grad=True
     class_file: str | None = None  # set only when the class source is in the workspace
     class_line: int | None = None
     in_shapes: Shapes | None = None  # first call; None if never called
@@ -201,7 +202,9 @@ def _run(torch, cls, ctor_kwargs: dict, inputs: dict, device: str, ws: _Workspac
     for path, m in model.named_modules():
         paths[id(m)] = path
         info = ModuleInfo(path=path, type=type(m).__name__,
-                          params=sum(p.numel() for p in m.parameters()))
+                          params=sum(p.numel() for p in m.parameters()),
+                          trainable_params=sum(p.numel() for p in m.parameters()
+                                               if p.requires_grad))
         try:
             src = inspect.getsourcefile(type(m))
             if src and ws.contains(src):

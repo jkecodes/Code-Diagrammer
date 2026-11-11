@@ -17,7 +17,8 @@ export type Node = {
   kind: "module" | "op" | "group";
   type: string;
   source: SourceRange | null;
-  params: number | null;
+  params: number | null; // all parameters, including frozen ones
+  trainableParams: number | null; // parameters with requires_grad=True
   shapeOnly: boolean;
   repeated: boolean;
   children: Node[];

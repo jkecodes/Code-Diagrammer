@@ -4,7 +4,7 @@ import type { Edge, Graph, Node } from "../src/ir";
 export function n(id: string, extra: Partial<Node> = {}): Node {
   const name = id.includes(".") ? id.slice(id.lastIndexOf(".") + 1) : id;
   return {
-    id, name, kind: "module", type: "Linear", source: null, params: null,
+    id, name, kind: "module", type: "Linear", source: null, params: null, trainableParams: null,
     shapeOnly: false, repeated: false, children: [], edges: [], ...extra,
   };
 }

@@ -56,3 +56,10 @@ def test_list_pyramid_keeps_only_real_producer():
         ("$in", "down", [1, 3, 8, 8], False), ("down", "body", [1, 3, 4, 4], False),
         ("body", "head", [1, 4, 4, 4], False), ("head", "$out", [1, 2, 4, 4], False)]
     assert names(child(g.root, "body")) == ["0", "1", "2"]
+
+
+def test_traced_nodes_carry_total_and_trainable_params():
+    g = traced("frozen.py", "Frozen", {"x": [1, 4]})
+    assert (g.root.params, g.root.trainable_params) == (30, 10)
+    assert child(g.root, "fixed").trainable_params == 0
+    assert g.to_dict()["root"]["trainableParams"] == 10

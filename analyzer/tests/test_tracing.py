@@ -67,3 +67,11 @@ def test_constructor_failure_is_trace_error():
     with pytest.raises(TraceError) as e:
         trace(CNN, "SimpleCNN", {"nope": 1}, {"x": [1, 3, 8, 8]}, workspace_root=ROOT)
     assert e.value.kind == "construct" and "nope" in e.value.log
+
+
+def test_trainable_params_counted_separately():
+    r = trace(str(FIXTURES / "frozen.py"), "Frozen", {}, {"x": [1, 4]}, workspace_root=ROOT)
+    by = {m.path: m for m in r.modules}
+    assert (by[""].params, by[""].trainable_params) == (30, 10)
+    assert (by["fixed"].params, by["fixed"].trainable_params) == (20, 0)
+    assert (by["head"].params, by["head"].trainable_params) == (10, 10)

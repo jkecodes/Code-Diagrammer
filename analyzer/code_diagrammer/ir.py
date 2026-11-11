@@ -61,7 +61,8 @@ class Node:
     kind: str  # "module" | "op" | "group"
     type: str
     source: SourceRange | None = None
-    params: int | None = None
+    params: int | None = None  # all parameters, including frozen ones
+    trainable_params: int | None = None  # parameters with requires_grad=True
     shape_only: bool = False
     repeated: bool = False
     children: list["Node"] = field(default_factory=list)
@@ -75,7 +76,8 @@ class Node:
         return {
             "id": self.id, "name": self.name, "kind": self.kind, "type": self.type,
             "source": self.source.to_dict() if self.source else None,
-            "params": self.params, "shapeOnly": self.shape_only, "repeated": self.repeated,
+            "params": self.params, "trainableParams": self.trainable_params,
+            "shapeOnly": self.shape_only, "repeated": self.repeated,
             "children": [c.to_dict() for c in self.children],
             "edges": [e.to_dict() for e in self.edges],
         }
@@ -85,6 +87,7 @@ class Node:
         return Node(
             id=d["id"], name=d["name"], kind=d["kind"], type=d["type"],
             source=SourceRange.from_dict(d["source"]), params=d["params"],
+            trainable_params=d.get("trainableParams"),
             shape_only=d["shapeOnly"], repeated=d["repeated"],
             children=[Node.from_dict(c) for c in d["children"]],
             edges=[Edge.from_dict(e) for e in d["edges"]],

@@ -48,6 +48,7 @@ class _Builder:
         info = self.infos[path]
         tpl = self.template(info)
         node = Node(id=node_id, name=name, kind="module", type=info.type, params=info.params,
+                    trainable_params=info.trainable_params,
                     source=tpl.source if tpl else fallback_source)
         prefix = "" if node_id == "root" else node_id + "."
         if tpl is not None and tpl.flow is not None:

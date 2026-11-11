@@ -113,7 +113,7 @@ function setGraph(next: Graph): void {
   title.replaceChildren(next.root.name);
   const meta = document.createElement("span");
   meta.className = "meta";
-  const parts = [formatParams(next.root.params)];
+  const parts = [formatParams(next.root.params, next.root.trainableParams)];
   if (next.meta.mode === "traced") parts.push("shapes traced on " + next.meta.device);
   meta.textContent = parts.filter(Boolean).join(" · ");
   title.appendChild(meta);

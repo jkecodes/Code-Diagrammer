@@ -21,13 +21,20 @@ export function formatShape(shape: number[] | null): string {
   return shape ? "[" + shape.join(", ") + "]" : "";
 }
 
-export function formatParams(n: number | null): string {
-  if (n === null) return "";
+function shortCount(n: number): string {
   const trim = (x: number) => x.toFixed(1).replace(/\.0$/, "");
-  if (n >= 1e9) return trim(n / 1e9) + "B params";
-  if (n >= 1e6) return trim(n / 1e6) + "M params";
-  if (n >= 1e3) return trim(n / 1e3) + "K params";
-  return n + " params";
+  if (n >= 1e9) return trim(n / 1e9) + "B";
+  if (n >= 1e6) return trim(n / 1e6) + "M";
+  if (n >= 1e3) return trim(n / 1e3) + "K";
+  return String(n);
+}
+
+/** Total parameter count; the trainable count is added when some parameters are frozen. */
+export function formatParams(n: number | null, trainable: number | null = null): string {
+  if (n === null) return "";
+  const total = shortCount(n) + " params";
+  if (trainable === null || trainable === n) return total;
+  return total + " (" + shortCount(trainable) + " trainable)";
 }
 
 function labels(node: Node, isRoot: boolean): { label: string; sublabel: string } {

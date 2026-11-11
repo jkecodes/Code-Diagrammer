@@ -117,3 +117,11 @@ test("terminals without edges are omitted", () => {
   const graph = g([n("a"), n("b")], [e("a", "b")]);
   expect(ids(buildView(graph, state()))).toEqual(["a", "b"]);
 });
+
+test("formatParams shows trainable parameters when some are frozen", () => {
+  expect(formatParams(338977, 75809)).toBe("339K params (75.8K trainable)");
+  expect(formatParams(30, 0)).toBe("30 params (0 trainable)");
+  expect(formatParams(1322, 1322)).toBe("1.3K params");
+  expect(formatParams(1322, null)).toBe("1.3K params");
+  expect(formatParams(null, null)).toBe("");
+});
