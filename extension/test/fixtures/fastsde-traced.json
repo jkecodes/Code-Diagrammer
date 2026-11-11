@@ -1,0 +1,3429 @@
+{
+ "version": 1,
+ "meta": {
+  "mode": "traced",
+  "analyzerVersion": "0.1.0",
+  "entry": {
+   "file": "models/fastsde.py",
+   "className": "SeldNetSubbandFast"
+  },
+  "ctorKwargs": {},
+  "inputs": {
+   "wav": [
+    1,
+    3200
+   ]
+  },
+  "device": "cpu",
+  "traceError": null
+ },
+ "root": {
+  "id": "root",
+  "name": "SeldNetSubbandFast",
+  "kind": "module",
+  "type": "SeldNetSubbandFast",
+  "source": {
+   "file": "models/fastsde.py",
+   "startLine": 81,
+   "endLine": 198
+  },
+  "params": 338977,
+  "trainableParams": 75809,
+  "shapeOnly": false,
+  "repeated": false,
+  "children": [
+   {
+    "id": "root/extract_features@171:12",
+    "name": "extract_features",
+    "kind": "group",
+    "type": "extract_features",
+    "source": {
+     "file": "models/fastsde.py",
+     "startLine": 171,
+     "endLine": 171
+    },
+    "params": null,
+    "trainableParams": null,
+    "shapeOnly": false,
+    "repeated": false,
+    "children": [
+     {
+      "id": "STFT",
+      "name": "STFT",
+      "kind": "module",
+      "type": "STFT",
+      "source": {
+       "file": "models/fastsde.py",
+       "startLine": 101,
+       "endLine": 101
+      },
+      "params": 263168,
+      "trainableParams": 0,
+      "shapeOnly": false,
+      "repeated": false,
+      "children": [],
+      "edges": []
+     },
+     {
+      "id": "root/extract_features@171:12/pow@151:26",
+      "name": "pow",
+      "kind": "op",
+      "type": "pow",
+      "source": {
+       "file": "models/fastsde.py",
+       "startLine": 151,
+       "endLine": 151
+      },
+      "params": null,
+      "trainableParams": null,
+      "shapeOnly": false,
+      "repeated": false,
+      "children": [],
+      "edges": []
+     },
+     {
+      "id": "root/extract_features@171:12/pow@151:38",
+      "name": "pow",
+      "kind": "op",
+      "type": "pow",
+      "source": {
+       "file": "models/fastsde.py",
+       "startLine": 151,
+       "endLine": 151
+      },
+      "params": null,
+      "trainableParams": null,
+      "shapeOnly": false,
+      "repeated": false,
+      "children": [],
+      "edges": []
+     },
+     {
+      "id": "root/extract_features@171:12/add@151:26",
+      "name": "add",
+      "kind": "op",
+      "type": "add",
+      "source": {
+       "file": "models/fastsde.py",
+       "startLine": 151,
+       "endLine": 151
+      },
+      "params": null,
+      "trainableParams": null,
+      "shapeOnly": false,
+      "repeated": false,
+      "children": [],
+      "edges": []
+     },
+     {
+      "id": "root/extract_features@171:12/sqrt@151:15",
+      "name": "sqrt",
+      "kind": "op",
+      "type": "sqrt",
+      "source": {
+       "file": "models/fastsde.py",
+       "startLine": 151,
+       "endLine": 151
+      },
+      "params": null,
+      "trainableParams": null,
+      "shapeOnly": false,
+      "repeated": false,
+      "children": [],
+      "edges": []
+     },
+     {
+      "id": "root/extract_features@171:12/pow@152:25",
+      "name": "pow",
+      "kind": "op",
+      "type": "pow",
+      "source": {
+       "file": "models/fastsde.py",
+       "startLine": 152,
+       "endLine": 152
+      },
+      "params": null,
+      "trainableParams": null,
+      "shapeOnly": false,
+      "repeated": false,
+      "children": [],
+      "edges": []
+     },
+     {
+      "id": "root/extract_features@171:12/add@152:25",
+      "name": "add",
+      "kind": "op",
+      "type": "add",
+      "source": {
+       "file": "models/fastsde.py",
+       "startLine": 152,
+       "endLine": 152
+      },
+      "params": null,
+      "trainableParams": null,
+      "shapeOnly": false,
+      "repeated": false,
+      "children": [],
+      "edges": []
+     },
+     {
+      "id": "root/extract_features@171:12/log@152:15",
+      "name": "log",
+      "kind": "op",
+      "type": "log",
+      "source": {
+       "file": "models/fastsde.py",
+       "startLine": 152,
+       "endLine": 152
+      },
+      "params": null,
+      "trainableParams": null,
+      "shapeOnly": false,
+      "repeated": false,
+      "children": [],
+      "edges": []
+     },
+     {
+      "id": "root/extract_features@171:12/mul@154:45",
+      "name": "mul",
+      "kind": "op",
+      "type": "mul",
+      "source": {
+       "file": "models/fastsde.py",
+       "startLine": 154,
+       "endLine": 154
+      },
+      "params": null,
+      "trainableParams": null,
+      "shapeOnly": false,
+      "repeated": false,
+      "children": [],
+      "edges": []
+     },
+     {
+      "id": "root/extract_features@171:12/add@154:36",
+      "name": "add",
+      "kind": "op",
+      "type": "add",
+      "source": {
+       "file": "models/fastsde.py",
+       "startLine": 154,
+       "endLine": 154
+      },
+      "params": null,
+      "trainableParams": null,
+      "shapeOnly": false,
+      "repeated": false,
+      "children": [],
+      "edges": []
+     },
+     {
+      "id": "root/extract_features@171:12/angle@154:24",
+      "name": "angle",
+      "kind": "op",
+      "type": "angle",
+      "source": {
+       "file": "models/fastsde.py",
+       "startLine": 154,
+       "endLine": 154
+      },
+      "params": null,
+      "trainableParams": null,
+      "shapeOnly": false,
+      "repeated": false,
+      "children": [],
+      "edges": []
+     },
+     {
+      "id": "root/extract_features@171:12/cos@154:14",
+      "name": "cos",
+      "kind": "op",
+      "type": "cos",
+      "source": {
+       "file": "models/fastsde.py",
+       "startLine": 154,
+       "endLine": 154
+      },
+      "params": null,
+      "trainableParams": null,
+      "shapeOnly": false,
+      "repeated": false,
+      "children": [],
+      "edges": []
+     },
+     {
+      "id": "root/extract_features@171:12/mul@155:45",
+      "name": "mul",
+      "kind": "op",
+      "type": "mul",
+      "source": {
+       "file": "models/fastsde.py",
+       "startLine": 155,
+       "endLine": 155
+      },
+      "params": null,
+      "trainableParams": null,
+      "shapeOnly": false,
+      "repeated": false,
+      "children": [],
+      "edges": []
+     },
+     {
+      "id": "root/extract_features@171:12/add@155:36",
+      "name": "add",
+      "kind": "op",
+      "type": "add",
+      "source": {
+       "file": "models/fastsde.py",
+       "startLine": 155,
+       "endLine": 155
+      },
+      "params": null,
+      "trainableParams": null,
+      "shapeOnly": false,
+      "repeated": false,
+      "children": [],
+      "edges": []
+     },
+     {
+      "id": "root/extract_features@171:12/angle@155:24",
+      "name": "angle",
+      "kind": "op",
+      "type": "angle",
+      "source": {
+       "file": "models/fastsde.py",
+       "startLine": 155,
+       "endLine": 155
+      },
+      "params": null,
+      "trainableParams": null,
+      "shapeOnly": false,
+      "repeated": false,
+      "children": [],
+      "edges": []
+     },
+     {
+      "id": "root/extract_features@171:12/sin@155:14",
+      "name": "sin",
+      "kind": "op",
+      "type": "sin",
+      "source": {
+       "file": "models/fastsde.py",
+       "startLine": 155,
+       "endLine": 155
+      },
+      "params": null,
+      "trainableParams": null,
+      "shapeOnly": false,
+      "repeated": false,
+      "children": [],
+      "edges": []
+     },
+     {
+      "id": "root/extract_features@171:12/getitem@157:15",
+      "name": "getitem",
+      "kind": "op",
+      "type": "getitem",
+      "source": {
+       "file": "models/fastsde.py",
+       "startLine": 157,
+       "endLine": 157
+      },
+      "params": null,
+      "trainableParams": null,
+      "shapeOnly": false,
+      "repeated": false,
+      "children": [],
+      "edges": []
+     },
+     {
+      "id": "root/extract_features@171:12/getitem@158:14",
+      "name": "getitem",
+      "kind": "op",
+      "type": "getitem",
+      "source": {
+       "file": "models/fastsde.py",
+       "startLine": 158,
+       "endLine": 158
+      },
+      "params": null,
+      "trainableParams": null,
+      "shapeOnly": false,
+      "repeated": false,
+      "children": [],
+      "edges": []
+     },
+     {
+      "id": "root/extract_features@171:12/getitem@159:14",
+      "name": "getitem",
+      "kind": "op",
+      "type": "getitem",
+      "source": {
+       "file": "models/fastsde.py",
+       "startLine": 159,
+       "endLine": 159
+      },
+      "params": null,
+      "trainableParams": null,
+      "shapeOnly": false,
+      "repeated": false,
+      "children": [],
+      "edges": []
+     },
+     {
+      "id": "root/extract_features@171:12/cat@166:16",
+      "name": "cat",
+      "kind": "op",
+      "type": "cat",
+      "source": {
+       "file": "models/fastsde.py",
+       "startLine": 166,
+       "endLine": 166
+      },
+      "params": null,
+      "trainableParams": null,
+      "shapeOnly": false,
+      "repeated": false,
+      "children": [],
+      "edges": []
+     },
+     {
+      "id": "root/extract_features@171:12/normalize_tensor@168:15",
+      "name": "normalize_tensor",
+      "kind": "group",
+      "type": "normalize_tensor",
+      "source": {
+       "file": "models/fastsde.py",
+       "startLine": 168,
+       "endLine": 168
+      },
+      "params": null,
+      "trainableParams": null,
+      "shapeOnly": false,
+      "repeated": false,
+      "children": [
+       {
+        "id": "root/extract_features@171:12/normalize_tensor@168:15/mean@145:15",
+        "name": "mean",
+        "kind": "op",
+        "type": "mean",
+        "source": {
+         "file": "models/fastsde.py",
+         "startLine": 145,
+         "endLine": 145
+        },
+        "params": null,
+        "trainableParams": null,
+        "shapeOnly": false,
+        "repeated": false,
+        "children": [],
+        "edges": []
+       },
+       {
+        "id": "root/extract_features@171:12/normalize_tensor@168:15/std@146:14",
+        "name": "std",
+        "kind": "op",
+        "type": "std",
+        "source": {
+         "file": "models/fastsde.py",
+         "startLine": 146,
+         "endLine": 146
+        },
+        "params": null,
+        "trainableParams": null,
+        "shapeOnly": false,
+        "repeated": false,
+        "children": [],
+        "edges": []
+       },
+       {
+        "id": "root/extract_features@171:12/normalize_tensor@168:15/add@146:14",
+        "name": "add",
+        "kind": "op",
+        "type": "add",
+        "source": {
+         "file": "models/fastsde.py",
+         "startLine": 146,
+         "endLine": 146
+        },
+        "params": null,
+        "trainableParams": null,
+        "shapeOnly": false,
+        "repeated": false,
+        "children": [],
+        "edges": []
+       },
+       {
+        "id": "root/extract_features@171:12/normalize_tensor@168:15/sub@147:16",
+        "name": "sub",
+        "kind": "op",
+        "type": "sub",
+        "source": {
+         "file": "models/fastsde.py",
+         "startLine": 147,
+         "endLine": 147
+        },
+        "params": null,
+        "trainableParams": null,
+        "shapeOnly": false,
+        "repeated": false,
+        "children": [],
+        "edges": []
+       },
+       {
+        "id": "root/extract_features@171:12/normalize_tensor@168:15/div@147:15",
+        "name": "div",
+        "kind": "op",
+        "type": "div",
+        "source": {
+         "file": "models/fastsde.py",
+         "startLine": 147,
+         "endLine": 147
+        },
+        "params": null,
+        "trainableParams": null,
+        "shapeOnly": false,
+        "repeated": false,
+        "children": [],
+        "edges": []
+       }
+      ],
+      "edges": [
+       {
+        "from": "$in",
+        "to": "root/extract_features@171:12/normalize_tensor@168:15/mean@145:15",
+        "outIndex": 0,
+        "shape": [
+         1,
+         1,
+         26,
+         256
+        ],
+        "dtype": "float32",
+        "uncertain": false
+       },
+       {
+        "from": "$in",
+        "to": "root/extract_features@171:12/normalize_tensor@168:15/std@146:14",
+        "outIndex": 0,
+        "shape": [
+         1,
+         1,
+         26,
+         256
+        ],
+        "dtype": "float32",
+        "uncertain": false
+       },
+       {
+        "from": "root/extract_features@171:12/normalize_tensor@168:15/std@146:14",
+        "to": "root/extract_features@171:12/normalize_tensor@168:15/add@146:14",
+        "outIndex": 0,
+        "shape": [
+         1,
+         3,
+         1,
+         1
+        ],
+        "dtype": "float32",
+        "uncertain": false
+       },
+       {
+        "from": "$in",
+        "to": "root/extract_features@171:12/normalize_tensor@168:15/sub@147:16",
+        "outIndex": 0,
+        "shape": [
+         1,
+         1,
+         26,
+         256
+        ],
+        "dtype": "float32",
+        "uncertain": false
+       },
+       {
+        "from": "root/extract_features@171:12/normalize_tensor@168:15/mean@145:15",
+        "to": "root/extract_features@171:12/normalize_tensor@168:15/sub@147:16",
+        "outIndex": 0,
+        "shape": [
+         1,
+         3,
+         1,
+         1
+        ],
+        "dtype": "float32",
+        "uncertain": false
+       },
+       {
+        "from": "root/extract_features@171:12/normalize_tensor@168:15/sub@147:16",
+        "to": "root/extract_features@171:12/normalize_tensor@168:15/div@147:15",
+        "outIndex": 0,
+        "shape": [
+         1,
+         3,
+         26,
+         256
+        ],
+        "dtype": "float32",
+        "uncertain": false
+       },
+       {
+        "from": "root/extract_features@171:12/normalize_tensor@168:15/add@146:14",
+        "to": "root/extract_features@171:12/normalize_tensor@168:15/div@147:15",
+        "outIndex": 0,
+        "shape": [
+         1,
+         3,
+         1,
+         1
+        ],
+        "dtype": "float32",
+        "uncertain": false
+       },
+       {
+        "from": "root/extract_features@171:12/normalize_tensor@168:15/div@147:15",
+        "to": "$out",
+        "outIndex": 0,
+        "shape": [
+         1,
+         3,
+         26,
+         256
+        ],
+        "dtype": "float32",
+        "uncertain": false
+       }
+      ]
+     }
+    ],
+    "edges": [
+     {
+      "from": "$in",
+      "to": "STFT",
+      "outIndex": 0,
+      "shape": [
+       1,
+       3200
+      ],
+      "dtype": null,
+      "uncertain": false
+     },
+     {
+      "from": "STFT",
+      "to": "root/extract_features@171:12/pow@151:26",
+      "outIndex": 0,
+      "shape": [
+       1,
+       1,
+       26,
+       257
+      ],
+      "dtype": "float32",
+      "uncertain": false
+     },
+     {
+      "from": "STFT",
+      "to": "root/extract_features@171:12/pow@151:38",
+      "outIndex": 1,
+      "shape": [
+       1,
+       1,
+       26,
+       257
+      ],
+      "dtype": "float32",
+      "uncertain": false
+     },
+     {
+      "from": "root/extract_features@171:12/pow@151:26",
+      "to": "root/extract_features@171:12/add@151:26",
+      "outIndex": 0,
+      "shape": [
+       1,
+       1,
+       26,
+       257
+      ],
+      "dtype": "float32",
+      "uncertain": false
+     },
+     {
+      "from": "root/extract_features@171:12/pow@151:38",
+      "to": "root/extract_features@171:12/add@151:26",
+      "outIndex": 0,
+      "shape": [
+       1,
+       1,
+       26,
+       257
+      ],
+      "dtype": "float32",
+      "uncertain": false
+     },
+     {
+      "from": "root/extract_features@171:12/add@151:26",
+      "to": "root/extract_features@171:12/sqrt@151:15",
+      "outIndex": 0,
+      "shape": [
+       1,
+       1,
+       26,
+       257
+      ],
+      "dtype": "float32",
+      "uncertain": false
+     },
+     {
+      "from": "root/extract_features@171:12/sqrt@151:15",
+      "to": "root/extract_features@171:12/pow@152:25",
+      "outIndex": 0,
+      "shape": [
+       1,
+       1,
+       26,
+       257
+      ],
+      "dtype": "float32",
+      "uncertain": false
+     },
+     {
+      "from": "root/extract_features@171:12/pow@152:25",
+      "to": "root/extract_features@171:12/add@152:25",
+      "outIndex": 0,
+      "shape": [
+       1,
+       1,
+       26,
+       257
+      ],
+      "dtype": "float32",
+      "uncertain": false
+     },
+     {
+      "from": "root/extract_features@171:12/add@152:25",
+      "to": "root/extract_features@171:12/log@152:15",
+      "outIndex": 0,
+      "shape": [
+       1,
+       1,
+       26,
+       257
+      ],
+      "dtype": "float32",
+      "uncertain": false
+     },
+     {
+      "from": "STFT",
+      "to": "root/extract_features@171:12/mul@154:45",
+      "outIndex": 1,
+      "shape": [
+       1,
+       1,
+       26,
+       257
+      ],
+      "dtype": "float32",
+      "uncertain": false
+     },
+     {
+      "from": "STFT",
+      "to": "root/extract_features@171:12/add@154:36",
+      "outIndex": 0,
+      "shape": [
+       1,
+       1,
+       26,
+       257
+      ],
+      "dtype": "float32",
+      "uncertain": false
+     },
+     {
+      "from": "root/extract_features@171:12/mul@154:45",
+      "to": "root/extract_features@171:12/add@154:36",
+      "outIndex": 0,
+      "shape": [
+       1,
+       1,
+       26,
+       257
+      ],
+      "dtype": "complex64",
+      "uncertain": false
+     },
+     {
+      "from": "root/extract_features@171:12/add@154:36",
+      "to": "root/extract_features@171:12/angle@154:24",
+      "outIndex": 0,
+      "shape": [
+       1,
+       1,
+       26,
+       257
+      ],
+      "dtype": "complex64",
+      "uncertain": false
+     },
+     {
+      "from": "root/extract_features@171:12/angle@154:24",
+      "to": "root/extract_features@171:12/cos@154:14",
+      "outIndex": 0,
+      "shape": [
+       1,
+       1,
+       26,
+       257
+      ],
+      "dtype": "float32",
+      "uncertain": false
+     },
+     {
+      "from": "STFT",
+      "to": "root/extract_features@171:12/mul@155:45",
+      "outIndex": 1,
+      "shape": [
+       1,
+       1,
+       26,
+       257
+      ],
+      "dtype": "float32",
+      "uncertain": false
+     },
+     {
+      "from": "STFT",
+      "to": "root/extract_features@171:12/add@155:36",
+      "outIndex": 0,
+      "shape": [
+       1,
+       1,
+       26,
+       257
+      ],
+      "dtype": "float32",
+      "uncertain": false
+     },
+     {
+      "from": "root/extract_features@171:12/mul@155:45",
+      "to": "root/extract_features@171:12/add@155:36",
+      "outIndex": 0,
+      "shape": [
+       1,
+       1,
+       26,
+       257
+      ],
+      "dtype": "complex64",
+      "uncertain": false
+     },
+     {
+      "from": "root/extract_features@171:12/add@155:36",
+      "to": "root/extract_features@171:12/angle@155:24",
+      "outIndex": 0,
+      "shape": [
+       1,
+       1,
+       26,
+       257
+      ],
+      "dtype": "complex64",
+      "uncertain": false
+     },
+     {
+      "from": "root/extract_features@171:12/angle@155:24",
+      "to": "root/extract_features@171:12/sin@155:14",
+      "outIndex": 0,
+      "shape": [
+       1,
+       1,
+       26,
+       257
+      ],
+      "dtype": "float32",
+      "uncertain": false
+     },
+     {
+      "from": "root/extract_features@171:12/log@152:15",
+      "to": "root/extract_features@171:12/getitem@157:15",
+      "outIndex": 0,
+      "shape": [
+       1,
+       1,
+       26,
+       257
+      ],
+      "dtype": "float32",
+      "uncertain": false
+     },
+     {
+      "from": "root/extract_features@171:12/cos@154:14",
+      "to": "root/extract_features@171:12/getitem@158:14",
+      "outIndex": 0,
+      "shape": [
+       1,
+       1,
+       26,
+       257
+      ],
+      "dtype": "float32",
+      "uncertain": false
+     },
+     {
+      "from": "root/extract_features@171:12/sin@155:14",
+      "to": "root/extract_features@171:12/getitem@159:14",
+      "outIndex": 0,
+      "shape": [
+       1,
+       1,
+       26,
+       257
+      ],
+      "dtype": "float32",
+      "uncertain": false
+     },
+     {
+      "from": "root/extract_features@171:12/getitem@157:15",
+      "to": "root/extract_features@171:12/cat@166:16",
+      "outIndex": 0,
+      "shape": [
+       1,
+       1,
+       26,
+       256
+      ],
+      "dtype": "float32",
+      "uncertain": false
+     },
+     {
+      "from": "root/extract_features@171:12/getitem@158:14",
+      "to": "root/extract_features@171:12/cat@166:16",
+      "outIndex": 0,
+      "shape": [
+       1,
+       1,
+       26,
+       256
+      ],
+      "dtype": "float32",
+      "uncertain": false
+     },
+     {
+      "from": "root/extract_features@171:12/getitem@159:14",
+      "to": "root/extract_features@171:12/cat@166:16",
+      "outIndex": 0,
+      "shape": [
+       1,
+       1,
+       26,
+       256
+      ],
+      "dtype": "float32",
+      "uncertain": false
+     },
+     {
+      "from": "root/extract_features@171:12/getitem@157:15",
+      "to": "root/extract_features@171:12/normalize_tensor@168:15",
+      "outIndex": 0,
+      "shape": [
+       1,
+       1,
+       26,
+       256
+      ],
+      "dtype": "float32",
+      "uncertain": false
+     },
+     {
+      "from": "root/extract_features@171:12/cat@166:16",
+      "to": "root/extract_features@171:12/normalize_tensor@168:15",
+      "outIndex": 0,
+      "shape": [
+       1,
+       3,
+       26,
+       256
+      ],
+      "dtype": "float32",
+      "uncertain": false
+     },
+     {
+      "from": "root/extract_features@171:12/normalize_tensor@168:15",
+      "to": "$out",
+      "outIndex": 0,
+      "shape": [
+       1,
+       3,
+       26,
+       256
+      ],
+      "dtype": "float32",
+      "uncertain": false
+     }
+    ]
+   },
+   {
+    "id": "split",
+    "name": "split",
+    "kind": "module",
+    "type": "SubbandSplitNoOverlap",
+    "source": {
+     "file": "models/fastsde.py",
+     "startLine": 13,
+     "endLine": 28
+    },
+    "params": 0,
+    "trainableParams": 0,
+    "shapeOnly": false,
+    "repeated": false,
+    "children": [
+     {
+      "id": "split/view@27:12",
+      "name": "view",
+      "kind": "op",
+      "type": "view",
+      "source": {
+       "file": "models/fastsde.py",
+       "startLine": 27,
+       "endLine": 27
+      },
+      "params": null,
+      "trainableParams": null,
+      "shapeOnly": true,
+      "repeated": false,
+      "children": [],
+      "edges": []
+     },
+     {
+      "id": "split/permute@27:12",
+      "name": "permute",
+      "kind": "op",
+      "type": "permute",
+      "source": {
+       "file": "models/fastsde.py",
+       "startLine": 27,
+       "endLine": 27
+      },
+      "params": null,
+      "trainableParams": null,
+      "shapeOnly": true,
+      "repeated": false,
+      "children": [],
+      "edges": []
+     },
+     {
+      "id": "split/contiguous@27:12",
+      "name": "contiguous",
+      "kind": "op",
+      "type": "contiguous",
+      "source": {
+       "file": "models/fastsde.py",
+       "startLine": 27,
+       "endLine": 27
+      },
+      "params": null,
+      "trainableParams": null,
+      "shapeOnly": true,
+      "repeated": false,
+      "children": [],
+      "edges": []
+     }
+    ],
+    "edges": [
+     {
+      "from": "$in",
+      "to": "split/view@27:12",
+      "outIndex": 0,
+      "shape": [
+       1,
+       3,
+       26,
+       256
+      ],
+      "dtype": null,
+      "uncertain": false
+     },
+     {
+      "from": "split/view@27:12",
+      "to": "split/permute@27:12",
+      "outIndex": 0,
+      "shape": [
+       1,
+       3,
+       26,
+       8,
+       32
+      ],
+      "dtype": "float32",
+      "uncertain": false
+     },
+     {
+      "from": "split/permute@27:12",
+      "to": "split/contiguous@27:12",
+      "outIndex": 0,
+      "shape": [
+       1,
+       8,
+       3,
+       26,
+       32
+      ],
+      "dtype": "float32",
+      "uncertain": false
+     },
+     {
+      "from": "split/contiguous@27:12",
+      "to": "$out",
+      "outIndex": 0,
+      "shape": [
+       1,
+       8,
+       3,
+       26,
+       32
+      ],
+      "dtype": "float32",
+      "uncertain": false
+     }
+    ]
+   },
+   {
+    "id": "root/view@177:12",
+    "name": "view",
+    "kind": "op",
+    "type": "view",
+    "source": {
+     "file": "models/fastsde.py",
+     "startLine": 177,
+     "endLine": 177
+    },
+    "params": null,
+    "trainableParams": null,
+    "shapeOnly": true,
+    "repeated": false,
+    "children": [],
+    "edges": []
+   },
+   {
+    "id": "enc",
+    "name": "enc",
+    "kind": "module",
+    "type": "SharedSubbandEncoder",
+    "source": {
+     "file": "models/fastsde.py",
+     "startLine": 62,
+     "endLine": 79
+    },
+    "params": 7327,
+    "trainableParams": 7327,
+    "shapeOnly": false,
+    "repeated": false,
+    "children": [
+     {
+      "id": "enc.proj",
+      "name": "proj",
+      "kind": "module",
+      "type": "Sequential",
+      "source": {
+       "file": "models/fastsde.py",
+       "startLine": 69,
+       "endLine": 69
+      },
+      "params": 121,
+      "trainableParams": 121,
+      "shapeOnly": false,
+      "repeated": false,
+      "children": [
+       {
+        "id": "enc.proj.0",
+        "name": "0",
+        "kind": "module",
+        "type": "Conv2d",
+        "source": {
+         "file": "models/fastsde.py",
+         "startLine": 69,
+         "endLine": 69
+        },
+        "params": 72,
+        "trainableParams": 72,
+        "shapeOnly": false,
+        "repeated": false,
+        "children": [],
+        "edges": []
+       },
+       {
+        "id": "enc.proj.1",
+        "name": "1",
+        "kind": "module",
+        "type": "BatchNorm2d",
+        "source": {
+         "file": "models/fastsde.py",
+         "startLine": 69,
+         "endLine": 69
+        },
+        "params": 48,
+        "trainableParams": 48,
+        "shapeOnly": false,
+        "repeated": false,
+        "children": [],
+        "edges": []
+       },
+       {
+        "id": "enc.proj.2",
+        "name": "2",
+        "kind": "module",
+        "type": "PReLU",
+        "source": {
+         "file": "models/fastsde.py",
+         "startLine": 69,
+         "endLine": 69
+        },
+        "params": 1,
+        "trainableParams": 1,
+        "shapeOnly": false,
+        "repeated": false,
+        "children": [],
+        "edges": []
+       }
+      ],
+      "edges": [
+       {
+        "from": "$in",
+        "to": "enc.proj.0",
+        "outIndex": 0,
+        "shape": [
+         8,
+         3,
+         26,
+         32
+        ],
+        "dtype": null,
+        "uncertain": false
+       },
+       {
+        "from": "enc.proj.0",
+        "to": "enc.proj.1",
+        "outIndex": 0,
+        "shape": [
+         8,
+         24,
+         26,
+         32
+        ],
+        "dtype": "float32",
+        "uncertain": false
+       },
+       {
+        "from": "enc.proj.1",
+        "to": "enc.proj.2",
+        "outIndex": 0,
+        "shape": [
+         8,
+         24,
+         26,
+         32
+        ],
+        "dtype": "float32",
+        "uncertain": false
+       },
+       {
+        "from": "enc.proj.2",
+        "to": "$out",
+        "outIndex": 0,
+        "shape": [
+         8,
+         24,
+         26,
+         32
+        ],
+        "dtype": "float32",
+        "uncertain": false
+       }
+      ]
+     },
+     {
+      "id": "enc.blocks",
+      "name": "blocks",
+      "kind": "module",
+      "type": "Sequential",
+      "source": {
+       "file": "models/fastsde.py",
+       "startLine": 74,
+       "endLine": 74
+      },
+      "params": 7206,
+      "trainableParams": 7206,
+      "shapeOnly": false,
+      "repeated": false,
+      "children": [
+       {
+        "id": "enc.blocks.0",
+        "name": "0",
+        "kind": "module",
+        "type": "FastFilterBlock",
+        "source": {
+         "file": "models/fastsde.py",
+         "startLine": 30,
+         "endLine": 60
+        },
+        "params": 2402,
+        "trainableParams": 2402,
+        "shapeOnly": false,
+        "repeated": false,
+        "children": [
+         {
+          "id": "enc.blocks.0.pw1",
+          "name": "pw1",
+          "kind": "module",
+          "type": "Sequential",
+          "source": {
+           "file": "models/fastsde.py",
+           "startLine": 38,
+           "endLine": 38
+          },
+          "params": 625,
+          "trainableParams": 625,
+          "shapeOnly": false,
+          "repeated": false,
+          "children": [
+           {
+            "id": "enc.blocks.0.pw1.0",
+            "name": "0",
+            "kind": "module",
+            "type": "Conv2d",
+            "source": {
+             "file": "models/fastsde.py",
+             "startLine": 38,
+             "endLine": 38
+            },
+            "params": 576,
+            "trainableParams": 576,
+            "shapeOnly": false,
+            "repeated": false,
+            "children": [],
+            "edges": []
+           },
+           {
+            "id": "enc.blocks.0.pw1.1",
+            "name": "1",
+            "kind": "module",
+            "type": "BatchNorm2d",
+            "source": {
+             "file": "models/fastsde.py",
+             "startLine": 38,
+             "endLine": 38
+            },
+            "params": 48,
+            "trainableParams": 48,
+            "shapeOnly": false,
+            "repeated": false,
+            "children": [],
+            "edges": []
+           },
+           {
+            "id": "enc.blocks.0.pw1.2",
+            "name": "2",
+            "kind": "module",
+            "type": "PReLU",
+            "source": {
+             "file": "models/fastsde.py",
+             "startLine": 38,
+             "endLine": 38
+            },
+            "params": 1,
+            "trainableParams": 1,
+            "shapeOnly": false,
+            "repeated": false,
+            "children": [],
+            "edges": []
+           }
+          ],
+          "edges": [
+           {
+            "from": "$in",
+            "to": "enc.blocks.0.pw1.0",
+            "outIndex": 0,
+            "shape": [
+             8,
+             24,
+             26,
+             32
+            ],
+            "dtype": null,
+            "uncertain": false
+           },
+           {
+            "from": "enc.blocks.0.pw1.0",
+            "to": "enc.blocks.0.pw1.1",
+            "outIndex": 0,
+            "shape": [
+             8,
+             24,
+             26,
+             32
+            ],
+            "dtype": "float32",
+            "uncertain": false
+           },
+           {
+            "from": "enc.blocks.0.pw1.1",
+            "to": "enc.blocks.0.pw1.2",
+            "outIndex": 0,
+            "shape": [
+             8,
+             24,
+             26,
+             32
+            ],
+            "dtype": "float32",
+            "uncertain": false
+           },
+           {
+            "from": "enc.blocks.0.pw1.2",
+            "to": "$out",
+            "outIndex": 0,
+            "shape": [
+             8,
+             24,
+             26,
+             32
+            ],
+            "dtype": "float32",
+            "uncertain": false
+           }
+          ]
+         },
+         {
+          "id": "enc.blocks.0.dw_a",
+          "name": "dw_a",
+          "kind": "module",
+          "type": "Conv2d",
+          "source": {
+           "file": "models/fastsde.py",
+           "startLine": 44,
+           "endLine": 44
+          },
+          "params": 72,
+          "trainableParams": 72,
+          "shapeOnly": false,
+          "repeated": false,
+          "children": [],
+          "edges": []
+         },
+         {
+          "id": "enc.blocks.0.dw_b",
+          "name": "dw_b",
+          "kind": "module",
+          "type": "Conv2d",
+          "source": {
+           "file": "models/fastsde.py",
+           "startLine": 45,
+           "endLine": 45
+          },
+          "params": 504,
+          "trainableParams": 504,
+          "shapeOnly": false,
+          "repeated": false,
+          "children": [],
+          "edges": []
+         },
+         {
+          "id": "enc.blocks.0/cat@58:12",
+          "name": "cat",
+          "kind": "op",
+          "type": "cat",
+          "source": {
+           "file": "models/fastsde.py",
+           "startLine": 58,
+           "endLine": 58
+          },
+          "params": null,
+          "trainableParams": null,
+          "shapeOnly": false,
+          "repeated": false,
+          "children": [],
+          "edges": []
+         },
+         {
+          "id": "enc.blocks.0.pw2",
+          "name": "pw2",
+          "kind": "module",
+          "type": "Sequential",
+          "source": {
+           "file": "models/fastsde.py",
+           "startLine": 47,
+           "endLine": 47
+          },
+          "params": 1201,
+          "trainableParams": 1201,
+          "shapeOnly": false,
+          "repeated": false,
+          "children": [
+           {
+            "id": "enc.blocks.0.pw2.0",
+            "name": "0",
+            "kind": "module",
+            "type": "Conv2d",
+            "source": {
+             "file": "models/fastsde.py",
+             "startLine": 47,
+             "endLine": 47
+            },
+            "params": 1152,
+            "trainableParams": 1152,
+            "shapeOnly": false,
+            "repeated": false,
+            "children": [],
+            "edges": []
+           },
+           {
+            "id": "enc.blocks.0.pw2.1",
+            "name": "1",
+            "kind": "module",
+            "type": "BatchNorm2d",
+            "source": {
+             "file": "models/fastsde.py",
+             "startLine": 47,
+             "endLine": 47
+            },
+            "params": 48,
+            "trainableParams": 48,
+            "shapeOnly": false,
+            "repeated": false,
+            "children": [],
+            "edges": []
+           },
+           {
+            "id": "enc.blocks.0.pw2.2",
+            "name": "2",
+            "kind": "module",
+            "type": "PReLU",
+            "source": {
+             "file": "models/fastsde.py",
+             "startLine": 47,
+             "endLine": 47
+            },
+            "params": 1,
+            "trainableParams": 1,
+            "shapeOnly": false,
+            "repeated": false,
+            "children": [],
+            "edges": []
+           }
+          ],
+          "edges": [
+           {
+            "from": "$in",
+            "to": "enc.blocks.0.pw2.0",
+            "outIndex": 0,
+            "shape": [
+             8,
+             48,
+             26,
+             32
+            ],
+            "dtype": null,
+            "uncertain": false
+           },
+           {
+            "from": "enc.blocks.0.pw2.0",
+            "to": "enc.blocks.0.pw2.1",
+            "outIndex": 0,
+            "shape": [
+             8,
+             24,
+             26,
+             32
+            ],
+            "dtype": "float32",
+            "uncertain": false
+           },
+           {
+            "from": "enc.blocks.0.pw2.1",
+            "to": "enc.blocks.0.pw2.2",
+            "outIndex": 0,
+            "shape": [
+             8,
+             24,
+             26,
+             32
+            ],
+            "dtype": "float32",
+            "uncertain": false
+           },
+           {
+            "from": "enc.blocks.0.pw2.2",
+            "to": "$out",
+            "outIndex": 0,
+            "shape": [
+             8,
+             24,
+             26,
+             32
+            ],
+            "dtype": "float32",
+            "uncertain": false
+           }
+          ]
+         },
+         {
+          "id": "enc.blocks.0/add@60:15",
+          "name": "add",
+          "kind": "op",
+          "type": "add",
+          "source": {
+           "file": "models/fastsde.py",
+           "startLine": 60,
+           "endLine": 60
+          },
+          "params": null,
+          "trainableParams": null,
+          "shapeOnly": false,
+          "repeated": false,
+          "children": [],
+          "edges": []
+         }
+        ],
+        "edges": [
+         {
+          "from": "$in",
+          "to": "enc.blocks.0.pw1",
+          "outIndex": 0,
+          "shape": [
+           8,
+           24,
+           26,
+           32
+          ],
+          "dtype": null,
+          "uncertain": false
+         },
+         {
+          "from": "enc.blocks.0.pw1",
+          "to": "enc.blocks.0.dw_a",
+          "outIndex": 0,
+          "shape": [
+           8,
+           24,
+           26,
+           32
+          ],
+          "dtype": "float32",
+          "uncertain": false
+         },
+         {
+          "from": "enc.blocks.0.pw1",
+          "to": "enc.blocks.0.dw_b",
+          "outIndex": 0,
+          "shape": [
+           8,
+           24,
+           26,
+           32
+          ],
+          "dtype": "float32",
+          "uncertain": false
+         },
+         {
+          "from": "enc.blocks.0.dw_a",
+          "to": "enc.blocks.0/cat@58:12",
+          "outIndex": 0,
+          "shape": [
+           8,
+           24,
+           26,
+           32
+          ],
+          "dtype": "float32",
+          "uncertain": false
+         },
+         {
+          "from": "enc.blocks.0.dw_b",
+          "to": "enc.blocks.0/cat@58:12",
+          "outIndex": 0,
+          "shape": [
+           8,
+           24,
+           26,
+           32
+          ],
+          "dtype": "float32",
+          "uncertain": false
+         },
+         {
+          "from": "enc.blocks.0/cat@58:12",
+          "to": "enc.blocks.0.pw2",
+          "outIndex": 0,
+          "shape": [
+           8,
+           48,
+           26,
+           32
+          ],
+          "dtype": "float32",
+          "uncertain": false
+         },
+         {
+          "from": "enc.blocks.0.pw2",
+          "to": "enc.blocks.0/add@60:15",
+          "outIndex": 0,
+          "shape": [
+           8,
+           24,
+           26,
+           32
+          ],
+          "dtype": "float32",
+          "uncertain": false
+         },
+         {
+          "from": "$in",
+          "to": "enc.blocks.0/add@60:15",
+          "outIndex": 0,
+          "shape": [
+           8,
+           24,
+           26,
+           32
+          ],
+          "dtype": null,
+          "uncertain": false
+         },
+         {
+          "from": "enc.blocks.0/add@60:15",
+          "to": "$out",
+          "outIndex": 0,
+          "shape": [
+           8,
+           24,
+           26,
+           32
+          ],
+          "dtype": "float32",
+          "uncertain": false
+         }
+        ]
+       },
+       {
+        "id": "enc.blocks.1",
+        "name": "1",
+        "kind": "module",
+        "type": "FastFilterBlock",
+        "source": {
+         "file": "models/fastsde.py",
+         "startLine": 30,
+         "endLine": 60
+        },
+        "params": 2402,
+        "trainableParams": 2402,
+        "shapeOnly": false,
+        "repeated": false,
+        "children": [
+         {
+          "id": "enc.blocks.1.pw1",
+          "name": "pw1",
+          "kind": "module",
+          "type": "Sequential",
+          "source": {
+           "file": "models/fastsde.py",
+           "startLine": 38,
+           "endLine": 38
+          },
+          "params": 625,
+          "trainableParams": 625,
+          "shapeOnly": false,
+          "repeated": false,
+          "children": [
+           {
+            "id": "enc.blocks.1.pw1.0",
+            "name": "0",
+            "kind": "module",
+            "type": "Conv2d",
+            "source": {
+             "file": "models/fastsde.py",
+             "startLine": 38,
+             "endLine": 38
+            },
+            "params": 576,
+            "trainableParams": 576,
+            "shapeOnly": false,
+            "repeated": false,
+            "children": [],
+            "edges": []
+           },
+           {
+            "id": "enc.blocks.1.pw1.1",
+            "name": "1",
+            "kind": "module",
+            "type": "BatchNorm2d",
+            "source": {
+             "file": "models/fastsde.py",
+             "startLine": 38,
+             "endLine": 38
+            },
+            "params": 48,
+            "trainableParams": 48,
+            "shapeOnly": false,
+            "repeated": false,
+            "children": [],
+            "edges": []
+           },
+           {
+            "id": "enc.blocks.1.pw1.2",
+            "name": "2",
+            "kind": "module",
+            "type": "PReLU",
+            "source": {
+             "file": "models/fastsde.py",
+             "startLine": 38,
+             "endLine": 38
+            },
+            "params": 1,
+            "trainableParams": 1,
+            "shapeOnly": false,
+            "repeated": false,
+            "children": [],
+            "edges": []
+           }
+          ],
+          "edges": [
+           {
+            "from": "$in",
+            "to": "enc.blocks.1.pw1.0",
+            "outIndex": 0,
+            "shape": [
+             8,
+             24,
+             26,
+             32
+            ],
+            "dtype": null,
+            "uncertain": false
+           },
+           {
+            "from": "enc.blocks.1.pw1.0",
+            "to": "enc.blocks.1.pw1.1",
+            "outIndex": 0,
+            "shape": [
+             8,
+             24,
+             26,
+             32
+            ],
+            "dtype": "float32",
+            "uncertain": false
+           },
+           {
+            "from": "enc.blocks.1.pw1.1",
+            "to": "enc.blocks.1.pw1.2",
+            "outIndex": 0,
+            "shape": [
+             8,
+             24,
+             26,
+             32
+            ],
+            "dtype": "float32",
+            "uncertain": false
+           },
+           {
+            "from": "enc.blocks.1.pw1.2",
+            "to": "$out",
+            "outIndex": 0,
+            "shape": [
+             8,
+             24,
+             26,
+             32
+            ],
+            "dtype": "float32",
+            "uncertain": false
+           }
+          ]
+         },
+         {
+          "id": "enc.blocks.1.dw_a",
+          "name": "dw_a",
+          "kind": "module",
+          "type": "Conv2d",
+          "source": {
+           "file": "models/fastsde.py",
+           "startLine": 44,
+           "endLine": 44
+          },
+          "params": 72,
+          "trainableParams": 72,
+          "shapeOnly": false,
+          "repeated": false,
+          "children": [],
+          "edges": []
+         },
+         {
+          "id": "enc.blocks.1.dw_b",
+          "name": "dw_b",
+          "kind": "module",
+          "type": "Conv2d",
+          "source": {
+           "file": "models/fastsde.py",
+           "startLine": 45,
+           "endLine": 45
+          },
+          "params": 504,
+          "trainableParams": 504,
+          "shapeOnly": false,
+          "repeated": false,
+          "children": [],
+          "edges": []
+         },
+         {
+          "id": "enc.blocks.1/cat@58:12",
+          "name": "cat",
+          "kind": "op",
+          "type": "cat",
+          "source": {
+           "file": "models/fastsde.py",
+           "startLine": 58,
+           "endLine": 58
+          },
+          "params": null,
+          "trainableParams": null,
+          "shapeOnly": false,
+          "repeated": false,
+          "children": [],
+          "edges": []
+         },
+         {
+          "id": "enc.blocks.1.pw2",
+          "name": "pw2",
+          "kind": "module",
+          "type": "Sequential",
+          "source": {
+           "file": "models/fastsde.py",
+           "startLine": 47,
+           "endLine": 47
+          },
+          "params": 1201,
+          "trainableParams": 1201,
+          "shapeOnly": false,
+          "repeated": false,
+          "children": [
+           {
+            "id": "enc.blocks.1.pw2.0",
+            "name": "0",
+            "kind": "module",
+            "type": "Conv2d",
+            "source": {
+             "file": "models/fastsde.py",
+             "startLine": 47,
+             "endLine": 47
+            },
+            "params": 1152,
+            "trainableParams": 1152,
+            "shapeOnly": false,
+            "repeated": false,
+            "children": [],
+            "edges": []
+           },
+           {
+            "id": "enc.blocks.1.pw2.1",
+            "name": "1",
+            "kind": "module",
+            "type": "BatchNorm2d",
+            "source": {
+             "file": "models/fastsde.py",
+             "startLine": 47,
+             "endLine": 47
+            },
+            "params": 48,
+            "trainableParams": 48,
+            "shapeOnly": false,
+            "repeated": false,
+            "children": [],
+            "edges": []
+           },
+           {
+            "id": "enc.blocks.1.pw2.2",
+            "name": "2",
+            "kind": "module",
+            "type": "PReLU",
+            "source": {
+             "file": "models/fastsde.py",
+             "startLine": 47,
+             "endLine": 47
+            },
+            "params": 1,
+            "trainableParams": 1,
+            "shapeOnly": false,
+            "repeated": false,
+            "children": [],
+            "edges": []
+           }
+          ],
+          "edges": [
+           {
+            "from": "$in",
+            "to": "enc.blocks.1.pw2.0",
+            "outIndex": 0,
+            "shape": [
+             8,
+             48,
+             26,
+             32
+            ],
+            "dtype": null,
+            "uncertain": false
+           },
+           {
+            "from": "enc.blocks.1.pw2.0",
+            "to": "enc.blocks.1.pw2.1",
+            "outIndex": 0,
+            "shape": [
+             8,
+             24,
+             26,
+             32
+            ],
+            "dtype": "float32",
+            "uncertain": false
+           },
+           {
+            "from": "enc.blocks.1.pw2.1",
+            "to": "enc.blocks.1.pw2.2",
+            "outIndex": 0,
+            "shape": [
+             8,
+             24,
+             26,
+             32
+            ],
+            "dtype": "float32",
+            "uncertain": false
+           },
+           {
+            "from": "enc.blocks.1.pw2.2",
+            "to": "$out",
+            "outIndex": 0,
+            "shape": [
+             8,
+             24,
+             26,
+             32
+            ],
+            "dtype": "float32",
+            "uncertain": false
+           }
+          ]
+         },
+         {
+          "id": "enc.blocks.1/add@60:15",
+          "name": "add",
+          "kind": "op",
+          "type": "add",
+          "source": {
+           "file": "models/fastsde.py",
+           "startLine": 60,
+           "endLine": 60
+          },
+          "params": null,
+          "trainableParams": null,
+          "shapeOnly": false,
+          "repeated": false,
+          "children": [],
+          "edges": []
+         }
+        ],
+        "edges": [
+         {
+          "from": "$in",
+          "to": "enc.blocks.1.pw1",
+          "outIndex": 0,
+          "shape": [
+           8,
+           24,
+           26,
+           32
+          ],
+          "dtype": null,
+          "uncertain": false
+         },
+         {
+          "from": "enc.blocks.1.pw1",
+          "to": "enc.blocks.1.dw_a",
+          "outIndex": 0,
+          "shape": [
+           8,
+           24,
+           26,
+           32
+          ],
+          "dtype": "float32",
+          "uncertain": false
+         },
+         {
+          "from": "enc.blocks.1.pw1",
+          "to": "enc.blocks.1.dw_b",
+          "outIndex": 0,
+          "shape": [
+           8,
+           24,
+           26,
+           32
+          ],
+          "dtype": "float32",
+          "uncertain": false
+         },
+         {
+          "from": "enc.blocks.1.dw_a",
+          "to": "enc.blocks.1/cat@58:12",
+          "outIndex": 0,
+          "shape": [
+           8,
+           24,
+           26,
+           32
+          ],
+          "dtype": "float32",
+          "uncertain": false
+         },
+         {
+          "from": "enc.blocks.1.dw_b",
+          "to": "enc.blocks.1/cat@58:12",
+          "outIndex": 0,
+          "shape": [
+           8,
+           24,
+           26,
+           32
+          ],
+          "dtype": "float32",
+          "uncertain": false
+         },
+         {
+          "from": "enc.blocks.1/cat@58:12",
+          "to": "enc.blocks.1.pw2",
+          "outIndex": 0,
+          "shape": [
+           8,
+           48,
+           26,
+           32
+          ],
+          "dtype": "float32",
+          "uncertain": false
+         },
+         {
+          "from": "enc.blocks.1.pw2",
+          "to": "enc.blocks.1/add@60:15",
+          "outIndex": 0,
+          "shape": [
+           8,
+           24,
+           26,
+           32
+          ],
+          "dtype": "float32",
+          "uncertain": false
+         },
+         {
+          "from": "$in",
+          "to": "enc.blocks.1/add@60:15",
+          "outIndex": 0,
+          "shape": [
+           8,
+           24,
+           26,
+           32
+          ],
+          "dtype": null,
+          "uncertain": false
+         },
+         {
+          "from": "enc.blocks.1/add@60:15",
+          "to": "$out",
+          "outIndex": 0,
+          "shape": [
+           8,
+           24,
+           26,
+           32
+          ],
+          "dtype": "float32",
+          "uncertain": false
+         }
+        ]
+       },
+       {
+        "id": "enc.blocks.2",
+        "name": "2",
+        "kind": "module",
+        "type": "FastFilterBlock",
+        "source": {
+         "file": "models/fastsde.py",
+         "startLine": 30,
+         "endLine": 60
+        },
+        "params": 2402,
+        "trainableParams": 2402,
+        "shapeOnly": false,
+        "repeated": false,
+        "children": [
+         {
+          "id": "enc.blocks.2.pw1",
+          "name": "pw1",
+          "kind": "module",
+          "type": "Sequential",
+          "source": {
+           "file": "models/fastsde.py",
+           "startLine": 38,
+           "endLine": 38
+          },
+          "params": 625,
+          "trainableParams": 625,
+          "shapeOnly": false,
+          "repeated": false,
+          "children": [
+           {
+            "id": "enc.blocks.2.pw1.0",
+            "name": "0",
+            "kind": "module",
+            "type": "Conv2d",
+            "source": {
+             "file": "models/fastsde.py",
+             "startLine": 38,
+             "endLine": 38
+            },
+            "params": 576,
+            "trainableParams": 576,
+            "shapeOnly": false,
+            "repeated": false,
+            "children": [],
+            "edges": []
+           },
+           {
+            "id": "enc.blocks.2.pw1.1",
+            "name": "1",
+            "kind": "module",
+            "type": "BatchNorm2d",
+            "source": {
+             "file": "models/fastsde.py",
+             "startLine": 38,
+             "endLine": 38
+            },
+            "params": 48,
+            "trainableParams": 48,
+            "shapeOnly": false,
+            "repeated": false,
+            "children": [],
+            "edges": []
+           },
+           {
+            "id": "enc.blocks.2.pw1.2",
+            "name": "2",
+            "kind": "module",
+            "type": "PReLU",
+            "source": {
+             "file": "models/fastsde.py",
+             "startLine": 38,
+             "endLine": 38
+            },
+            "params": 1,
+            "trainableParams": 1,
+            "shapeOnly": false,
+            "repeated": false,
+            "children": [],
+            "edges": []
+           }
+          ],
+          "edges": [
+           {
+            "from": "$in",
+            "to": "enc.blocks.2.pw1.0",
+            "outIndex": 0,
+            "shape": [
+             8,
+             24,
+             26,
+             32
+            ],
+            "dtype": null,
+            "uncertain": false
+           },
+           {
+            "from": "enc.blocks.2.pw1.0",
+            "to": "enc.blocks.2.pw1.1",
+            "outIndex": 0,
+            "shape": [
+             8,
+             24,
+             26,
+             32
+            ],
+            "dtype": "float32",
+            "uncertain": false
+           },
+           {
+            "from": "enc.blocks.2.pw1.1",
+            "to": "enc.blocks.2.pw1.2",
+            "outIndex": 0,
+            "shape": [
+             8,
+             24,
+             26,
+             32
+            ],
+            "dtype": "float32",
+            "uncertain": false
+           },
+           {
+            "from": "enc.blocks.2.pw1.2",
+            "to": "$out",
+            "outIndex": 0,
+            "shape": [
+             8,
+             24,
+             26,
+             32
+            ],
+            "dtype": "float32",
+            "uncertain": false
+           }
+          ]
+         },
+         {
+          "id": "enc.blocks.2.dw_a",
+          "name": "dw_a",
+          "kind": "module",
+          "type": "Conv2d",
+          "source": {
+           "file": "models/fastsde.py",
+           "startLine": 44,
+           "endLine": 44
+          },
+          "params": 72,
+          "trainableParams": 72,
+          "shapeOnly": false,
+          "repeated": false,
+          "children": [],
+          "edges": []
+         },
+         {
+          "id": "enc.blocks.2.dw_b",
+          "name": "dw_b",
+          "kind": "module",
+          "type": "Conv2d",
+          "source": {
+           "file": "models/fastsde.py",
+           "startLine": 45,
+           "endLine": 45
+          },
+          "params": 504,
+          "trainableParams": 504,
+          "shapeOnly": false,
+          "repeated": false,
+          "children": [],
+          "edges": []
+         },
+         {
+          "id": "enc.blocks.2/cat@58:12",
+          "name": "cat",
+          "kind": "op",
+          "type": "cat",
+          "source": {
+           "file": "models/fastsde.py",
+           "startLine": 58,
+           "endLine": 58
+          },
+          "params": null,
+          "trainableParams": null,
+          "shapeOnly": false,
+          "repeated": false,
+          "children": [],
+          "edges": []
+         },
+         {
+          "id": "enc.blocks.2.pw2",
+          "name": "pw2",
+          "kind": "module",
+          "type": "Sequential",
+          "source": {
+           "file": "models/fastsde.py",
+           "startLine": 47,
+           "endLine": 47
+          },
+          "params": 1201,
+          "trainableParams": 1201,
+          "shapeOnly": false,
+          "repeated": false,
+          "children": [
+           {
+            "id": "enc.blocks.2.pw2.0",
+            "name": "0",
+            "kind": "module",
+            "type": "Conv2d",
+            "source": {
+             "file": "models/fastsde.py",
+             "startLine": 47,
+             "endLine": 47
+            },
+            "params": 1152,
+            "trainableParams": 1152,
+            "shapeOnly": false,
+            "repeated": false,
+            "children": [],
+            "edges": []
+           },
+           {
+            "id": "enc.blocks.2.pw2.1",
+            "name": "1",
+            "kind": "module",
+            "type": "BatchNorm2d",
+            "source": {
+             "file": "models/fastsde.py",
+             "startLine": 47,
+             "endLine": 47
+            },
+            "params": 48,
+            "trainableParams": 48,
+            "shapeOnly": false,
+            "repeated": false,
+            "children": [],
+            "edges": []
+           },
+           {
+            "id": "enc.blocks.2.pw2.2",
+            "name": "2",
+            "kind": "module",
+            "type": "PReLU",
+            "source": {
+             "file": "models/fastsde.py",
+             "startLine": 47,
+             "endLine": 47
+            },
+            "params": 1,
+            "trainableParams": 1,
+            "shapeOnly": false,
+            "repeated": false,
+            "children": [],
+            "edges": []
+           }
+          ],
+          "edges": [
+           {
+            "from": "$in",
+            "to": "enc.blocks.2.pw2.0",
+            "outIndex": 0,
+            "shape": [
+             8,
+             48,
+             26,
+             32
+            ],
+            "dtype": null,
+            "uncertain": false
+           },
+           {
+            "from": "enc.blocks.2.pw2.0",
+            "to": "enc.blocks.2.pw2.1",
+            "outIndex": 0,
+            "shape": [
+             8,
+             24,
+             26,
+             32
+            ],
+            "dtype": "float32",
+            "uncertain": false
+           },
+           {
+            "from": "enc.blocks.2.pw2.1",
+            "to": "enc.blocks.2.pw2.2",
+            "outIndex": 0,
+            "shape": [
+             8,
+             24,
+             26,
+             32
+            ],
+            "dtype": "float32",
+            "uncertain": false
+           },
+           {
+            "from": "enc.blocks.2.pw2.2",
+            "to": "$out",
+            "outIndex": 0,
+            "shape": [
+             8,
+             24,
+             26,
+             32
+            ],
+            "dtype": "float32",
+            "uncertain": false
+           }
+          ]
+         },
+         {
+          "id": "enc.blocks.2/add@60:15",
+          "name": "add",
+          "kind": "op",
+          "type": "add",
+          "source": {
+           "file": "models/fastsde.py",
+           "startLine": 60,
+           "endLine": 60
+          },
+          "params": null,
+          "trainableParams": null,
+          "shapeOnly": false,
+          "repeated": false,
+          "children": [],
+          "edges": []
+         }
+        ],
+        "edges": [
+         {
+          "from": "$in",
+          "to": "enc.blocks.2.pw1",
+          "outIndex": 0,
+          "shape": [
+           8,
+           24,
+           26,
+           32
+          ],
+          "dtype": null,
+          "uncertain": false
+         },
+         {
+          "from": "enc.blocks.2.pw1",
+          "to": "enc.blocks.2.dw_a",
+          "outIndex": 0,
+          "shape": [
+           8,
+           24,
+           26,
+           32
+          ],
+          "dtype": "float32",
+          "uncertain": false
+         },
+         {
+          "from": "enc.blocks.2.pw1",
+          "to": "enc.blocks.2.dw_b",
+          "outIndex": 0,
+          "shape": [
+           8,
+           24,
+           26,
+           32
+          ],
+          "dtype": "float32",
+          "uncertain": false
+         },
+         {
+          "from": "enc.blocks.2.dw_a",
+          "to": "enc.blocks.2/cat@58:12",
+          "outIndex": 0,
+          "shape": [
+           8,
+           24,
+           26,
+           32
+          ],
+          "dtype": "float32",
+          "uncertain": false
+         },
+         {
+          "from": "enc.blocks.2.dw_b",
+          "to": "enc.blocks.2/cat@58:12",
+          "outIndex": 0,
+          "shape": [
+           8,
+           24,
+           26,
+           32
+          ],
+          "dtype": "float32",
+          "uncertain": false
+         },
+         {
+          "from": "enc.blocks.2/cat@58:12",
+          "to": "enc.blocks.2.pw2",
+          "outIndex": 0,
+          "shape": [
+           8,
+           48,
+           26,
+           32
+          ],
+          "dtype": "float32",
+          "uncertain": false
+         },
+         {
+          "from": "enc.blocks.2.pw2",
+          "to": "enc.blocks.2/add@60:15",
+          "outIndex": 0,
+          "shape": [
+           8,
+           24,
+           26,
+           32
+          ],
+          "dtype": "float32",
+          "uncertain": false
+         },
+         {
+          "from": "$in",
+          "to": "enc.blocks.2/add@60:15",
+          "outIndex": 0,
+          "shape": [
+           8,
+           24,
+           26,
+           32
+          ],
+          "dtype": null,
+          "uncertain": false
+         },
+         {
+          "from": "enc.blocks.2/add@60:15",
+          "to": "$out",
+          "outIndex": 0,
+          "shape": [
+           8,
+           24,
+           26,
+           32
+          ],
+          "dtype": "float32",
+          "uncertain": false
+         }
+        ]
+       }
+      ],
+      "edges": [
+       {
+        "from": "$in",
+        "to": "enc.blocks.0",
+        "outIndex": 0,
+        "shape": [
+         8,
+         24,
+         26,
+         32
+        ],
+        "dtype": null,
+        "uncertain": false
+       },
+       {
+        "from": "enc.blocks.0",
+        "to": "enc.blocks.1",
+        "outIndex": 0,
+        "shape": [
+         8,
+         24,
+         26,
+         32
+        ],
+        "dtype": "float32",
+        "uncertain": false
+       },
+       {
+        "from": "enc.blocks.1",
+        "to": "enc.blocks.2",
+        "outIndex": 0,
+        "shape": [
+         8,
+         24,
+         26,
+         32
+        ],
+        "dtype": "float32",
+        "uncertain": false
+       },
+       {
+        "from": "enc.blocks.2",
+        "to": "$out",
+        "outIndex": 0,
+        "shape": [
+         8,
+         24,
+         26,
+         32
+        ],
+        "dtype": "float32",
+        "uncertain": false
+       }
+      ]
+     }
+    ],
+    "edges": [
+     {
+      "from": "$in",
+      "to": "enc.proj",
+      "outIndex": 0,
+      "shape": [
+       8,
+       3,
+       26,
+       32
+      ],
+      "dtype": null,
+      "uncertain": false
+     },
+     {
+      "from": "enc.proj",
+      "to": "enc.blocks",
+      "outIndex": 0,
+      "shape": [
+       8,
+       24,
+       26,
+       32
+      ],
+      "dtype": "float32",
+      "uncertain": false
+     },
+     {
+      "from": "enc.blocks",
+      "to": "$out",
+      "outIndex": 0,
+      "shape": [
+       8,
+       24,
+       26,
+       32
+      ],
+      "dtype": "float32",
+      "uncertain": false
+     }
+    ]
+   },
+   {
+    "id": "root/view@180:12",
+    "name": "view",
+    "kind": "op",
+    "type": "view",
+    "source": {
+     "file": "models/fastsde.py",
+     "startLine": 180,
+     "endLine": 180
+    },
+    "params": null,
+    "trainableParams": null,
+    "shapeOnly": true,
+    "repeated": false,
+    "children": [],
+    "edges": []
+   },
+   {
+    "id": "root/mean@182:17",
+    "name": "mean",
+    "kind": "op",
+    "type": "mean",
+    "source": {
+     "file": "models/fastsde.py",
+     "startLine": 182,
+     "endLine": 182
+    },
+    "params": null,
+    "trainableParams": null,
+    "shapeOnly": false,
+    "repeated": false,
+    "children": [],
+    "edges": []
+   },
+   {
+    "id": "root/amax@183:16",
+    "name": "amax",
+    "kind": "op",
+    "type": "amax",
+    "source": {
+     "file": "models/fastsde.py",
+     "startLine": 183,
+     "endLine": 183
+    },
+    "params": null,
+    "trainableParams": null,
+    "shapeOnly": false,
+    "repeated": false,
+    "children": [],
+    "edges": []
+   },
+   {
+    "id": "root/add@184:19",
+    "name": "add",
+    "kind": "op",
+    "type": "add",
+    "source": {
+     "file": "models/fastsde.py",
+     "startLine": 184,
+     "endLine": 184
+    },
+    "params": null,
+    "trainableParams": null,
+    "shapeOnly": false,
+    "repeated": false,
+    "children": [],
+    "edges": []
+   },
+   {
+    "id": "root/mul@184:12",
+    "name": "mul",
+    "kind": "op",
+    "type": "mul",
+    "source": {
+     "file": "models/fastsde.py",
+     "startLine": 184,
+     "endLine": 184
+    },
+    "params": null,
+    "trainableParams": null,
+    "shapeOnly": false,
+    "repeated": false,
+    "children": [],
+    "edges": []
+   },
+   {
+    "id": "root/view@186:12",
+    "name": "view",
+    "kind": "op",
+    "type": "view",
+    "source": {
+     "file": "models/fastsde.py",
+     "startLine": 186,
+     "endLine": 186
+    },
+    "params": null,
+    "trainableParams": null,
+    "shapeOnly": true,
+    "repeated": false,
+    "children": [],
+    "edges": []
+   },
+   {
+    "id": "fuse",
+    "name": "fuse",
+    "kind": "module",
+    "type": "Sequential",
+    "source": {
+     "file": "models/fastsde.py",
+     "startLine": 118,
+     "endLine": 118
+    },
+    "params": 12417,
+    "trainableParams": 12417,
+    "shapeOnly": false,
+    "repeated": false,
+    "children": [
+     {
+      "id": "fuse.0",
+      "name": "0",
+      "kind": "module",
+      "type": "Conv1d",
+      "source": {
+       "file": "models/fastsde.py",
+       "startLine": 118,
+       "endLine": 118
+      },
+      "params": 12288,
+      "trainableParams": 12288,
+      "shapeOnly": false,
+      "repeated": false,
+      "children": [],
+      "edges": []
+     },
+     {
+      "id": "fuse.1",
+      "name": "1",
+      "kind": "module",
+      "type": "BatchNorm1d",
+      "source": {
+       "file": "models/fastsde.py",
+       "startLine": 118,
+       "endLine": 118
+      },
+      "params": 128,
+      "trainableParams": 128,
+      "shapeOnly": false,
+      "repeated": false,
+      "children": [],
+      "edges": []
+     },
+     {
+      "id": "fuse.2",
+      "name": "2",
+      "kind": "module",
+      "type": "PReLU",
+      "source": {
+       "file": "models/fastsde.py",
+       "startLine": 118,
+       "endLine": 118
+      },
+      "params": 1,
+      "trainableParams": 1,
+      "shapeOnly": false,
+      "repeated": false,
+      "children": [],
+      "edges": []
+     }
+    ],
+    "edges": [
+     {
+      "from": "$in",
+      "to": "fuse.0",
+      "outIndex": 0,
+      "shape": [
+       1,
+       192,
+       26
+      ],
+      "dtype": null,
+      "uncertain": false
+     },
+     {
+      "from": "fuse.0",
+      "to": "fuse.1",
+      "outIndex": 0,
+      "shape": [
+       1,
+       64,
+       26
+      ],
+      "dtype": "float32",
+      "uncertain": false
+     },
+     {
+      "from": "fuse.1",
+      "to": "fuse.2",
+      "outIndex": 0,
+      "shape": [
+       1,
+       64,
+       26
+      ],
+      "dtype": "float32",
+      "uncertain": false
+     },
+     {
+      "from": "fuse.2",
+      "to": "$out",
+      "outIndex": 0,
+      "shape": [
+       1,
+       64,
+       26
+      ],
+      "dtype": "float32",
+      "uncertain": false
+     }
+    ]
+   },
+   {
+    "id": "root/permute@188:12",
+    "name": "permute",
+    "kind": "op",
+    "type": "permute",
+    "source": {
+     "file": "models/fastsde.py",
+     "startLine": 188,
+     "endLine": 188
+    },
+    "params": null,
+    "trainableParams": null,
+    "shapeOnly": true,
+    "repeated": false,
+    "children": [],
+    "edges": []
+   },
+   {
+    "id": "root/contiguous@188:12",
+    "name": "contiguous",
+    "kind": "op",
+    "type": "contiguous",
+    "source": {
+     "file": "models/fastsde.py",
+     "startLine": 188,
+     "endLine": 188
+    },
+    "params": null,
+    "trainableParams": null,
+    "shapeOnly": true,
+    "repeated": false,
+    "children": [],
+    "edges": []
+   },
+   {
+    "id": "gru",
+    "name": "gru",
+    "kind": "module",
+    "type": "GRU",
+    "source": {
+     "file": "models/fastsde.py",
+     "startLine": 126,
+     "endLine": 126
+    },
+    "params": 46656,
+    "trainableParams": 46656,
+    "shapeOnly": false,
+    "repeated": false,
+    "children": [],
+    "edges": []
+   },
+   {
+    "id": "root/mean@194:28",
+    "name": "mean",
+    "kind": "op",
+    "type": "mean",
+    "source": {
+     "file": "models/fastsde.py",
+     "startLine": 194,
+     "endLine": 194
+    },
+    "params": null,
+    "trainableParams": null,
+    "shapeOnly": false,
+    "repeated": false,
+    "children": [],
+    "edges": []
+   },
+   {
+    "id": "root/amax@194:44",
+    "name": "amax",
+    "kind": "op",
+    "type": "amax",
+    "source": {
+     "file": "models/fastsde.py",
+     "startLine": 194,
+     "endLine": 194
+    },
+    "params": null,
+    "trainableParams": null,
+    "shapeOnly": false,
+    "repeated": false,
+    "children": [],
+    "edges": []
+   },
+   {
+    "id": "root/add@194:28",
+    "name": "add",
+    "kind": "op",
+    "type": "add",
+    "source": {
+     "file": "models/fastsde.py",
+     "startLine": 194,
+     "endLine": 194
+    },
+    "params": null,
+    "trainableParams": null,
+    "shapeOnly": false,
+    "repeated": false,
+    "children": [],
+    "edges": []
+   },
+   {
+    "id": "root/mul@194:21",
+    "name": "mul",
+    "kind": "op",
+    "type": "mul",
+    "source": {
+     "file": "models/fastsde.py",
+     "startLine": 194,
+     "endLine": 194
+    },
+    "params": null,
+    "trainableParams": null,
+    "shapeOnly": false,
+    "repeated": false,
+    "children": [],
+    "edges": []
+   },
+   {
+    "id": "head",
+    "name": "head",
+    "kind": "module",
+    "type": "Sequential",
+    "source": {
+     "file": "models/fastsde.py",
+     "startLine": 137,
+     "endLine": 137
+    },
+    "params": 9409,
+    "trainableParams": 9409,
+    "shapeOnly": false,
+    "repeated": false,
+    "children": [
+     {
+      "id": "head.0",
+      "name": "0",
+      "kind": "module",
+      "type": "Linear",
+      "source": {
+       "file": "models/fastsde.py",
+       "startLine": 137,
+       "endLine": 137
+      },
+      "params": 9312,
+      "trainableParams": 9312,
+      "shapeOnly": false,
+      "repeated": false,
+      "children": [],
+      "edges": []
+     },
+     {
+      "id": "head.1",
+      "name": "1",
+      "kind": "module",
+      "type": "ELU",
+      "source": {
+       "file": "models/fastsde.py",
+       "startLine": 137,
+       "endLine": 137
+      },
+      "params": 0,
+      "trainableParams": 0,
+      "shapeOnly": false,
+      "repeated": false,
+      "children": [],
+      "edges": []
+     },
+     {
+      "id": "head.2",
+      "name": "2",
+      "kind": "module",
+      "type": "Linear",
+      "source": {
+       "file": "models/fastsde.py",
+       "startLine": 137,
+       "endLine": 137
+      },
+      "params": 97,
+      "trainableParams": 97,
+      "shapeOnly": false,
+      "repeated": false,
+      "children": [],
+      "edges": []
+     }
+    ],
+    "edges": [
+     {
+      "from": "$in",
+      "to": "head.0",
+      "outIndex": 0,
+      "shape": [
+       1,
+       96
+      ],
+      "dtype": null,
+      "uncertain": false
+     },
+     {
+      "from": "head.0",
+      "to": "head.1",
+      "outIndex": 0,
+      "shape": [
+       1,
+       96
+      ],
+      "dtype": "float32",
+      "uncertain": false
+     },
+     {
+      "from": "head.1",
+      "to": "head.2",
+      "outIndex": 0,
+      "shape": [
+       1,
+       96
+      ],
+      "dtype": "float32",
+      "uncertain": false
+     },
+     {
+      "from": "head.2",
+      "to": "$out",
+      "outIndex": 0,
+      "shape": [
+       1,
+       1
+      ],
+      "dtype": "float32",
+      "uncertain": false
+     }
+    ]
+   }
+  ],
+  "edges": [
+   {
+    "from": "$in",
+    "to": "root/extract_features@171:12",
+    "outIndex": 0,
+    "shape": [
+     1,
+     3200
+    ],
+    "dtype": null,
+    "uncertain": false
+   },
+   {
+    "from": "root/extract_features@171:12",
+    "to": "split",
+    "outIndex": 0,
+    "shape": [
+     1,
+     3,
+     26,
+     256
+    ],
+    "dtype": "float32",
+    "uncertain": false
+   },
+   {
+    "from": "split",
+    "to": "root/view@177:12",
+    "outIndex": 0,
+    "shape": [
+     1,
+     8,
+     3,
+     26,
+     32
+    ],
+    "dtype": "float32",
+    "uncertain": false
+   },
+   {
+    "from": "root/view@177:12",
+    "to": "enc",
+    "outIndex": 0,
+    "shape": [
+     8,
+     3,
+     26,
+     32
+    ],
+    "dtype": "float32",
+    "uncertain": false
+   },
+   {
+    "from": "enc",
+    "to": "root/view@180:12",
+    "outIndex": 0,
+    "shape": [
+     8,
+     24,
+     26,
+     32
+    ],
+    "dtype": "float32",
+    "uncertain": false
+   },
+   {
+    "from": "root/view@180:12",
+    "to": "root/mean@182:17",
+    "outIndex": 0,
+    "shape": [
+     1,
+     8,
+     24,
+     26,
+     32
+    ],
+    "dtype": "float32",
+    "uncertain": false
+   },
+   {
+    "from": "root/view@180:12",
+    "to": "root/amax@183:16",
+    "outIndex": 0,
+    "shape": [
+     1,
+     8,
+     24,
+     26,
+     32
+    ],
+    "dtype": "float32",
+    "uncertain": false
+   },
+   {
+    "from": "root/mean@182:17",
+    "to": "root/add@184:19",
+    "outIndex": 0,
+    "shape": [
+     1,
+     8,
+     24,
+     26
+    ],
+    "dtype": "float32",
+    "uncertain": false
+   },
+   {
+    "from": "root/amax@183:16",
+    "to": "root/add@184:19",
+    "outIndex": 0,
+    "shape": [
+     1,
+     8,
+     24,
+     26
+    ],
+    "dtype": "float32",
+    "uncertain": false
+   },
+   {
+    "from": "root/add@184:19",
+    "to": "root/mul@184:12",
+    "outIndex": 0,
+    "shape": [
+     1,
+     8,
+     24,
+     26
+    ],
+    "dtype": "float32",
+    "uncertain": false
+   },
+   {
+    "from": "root/mul@184:12",
+    "to": "root/view@186:12",
+    "outIndex": 0,
+    "shape": [
+     1,
+     8,
+     24,
+     26
+    ],
+    "dtype": "float32",
+    "uncertain": false
+   },
+   {
+    "from": "root/view@186:12",
+    "to": "fuse",
+    "outIndex": 0,
+    "shape": [
+     1,
+     192,
+     26
+    ],
+    "dtype": "float32",
+    "uncertain": false
+   },
+   {
+    "from": "fuse",
+    "to": "root/permute@188:12",
+    "outIndex": 0,
+    "shape": [
+     1,
+     64,
+     26
+    ],
+    "dtype": "float32",
+    "uncertain": false
+   },
+   {
+    "from": "root/permute@188:12",
+    "to": "root/contiguous@188:12",
+    "outIndex": 0,
+    "shape": [
+     1,
+     26,
+     64
+    ],
+    "dtype": "float32",
+    "uncertain": false
+   },
+   {
+    "from": "root/contiguous@188:12",
+    "to": "gru",
+    "outIndex": 0,
+    "shape": [
+     1,
+     26,
+     64
+    ],
+    "dtype": "float32",
+    "uncertain": false
+   },
+   {
+    "from": "gru",
+    "to": "root/mean@194:28",
+    "outIndex": 0,
+    "shape": [
+     1,
+     26,
+     96
+    ],
+    "dtype": "float32",
+    "uncertain": false
+   },
+   {
+    "from": "gru",
+    "to": "root/amax@194:44",
+    "outIndex": 0,
+    "shape": [
+     1,
+     26,
+     96
+    ],
+    "dtype": "float32",
+    "uncertain": false
+   },
+   {
+    "from": "root/mean@194:28",
+    "to": "root/add@194:28",
+    "outIndex": 0,
+    "shape": [
+     1,
+     96
+    ],
+    "dtype": "float32",
+    "uncertain": false
+   },
+   {
+    "from": "root/amax@194:44",
+    "to": "root/add@194:28",
+    "outIndex": 0,
+    "shape": [
+     1,
+     96
+    ],
+    "dtype": "float32",
+    "uncertain": false
+   },
+   {
+    "from": "root/add@194:28",
+    "to": "root/mul@194:21",
+    "outIndex": 0,
+    "shape": [
+     1,
+     96
+    ],
+    "dtype": "float32",
+    "uncertain": false
+   },
+   {
+    "from": "root/mul@194:21",
+    "to": "head",
+    "outIndex": 0,
+    "shape": [
+     1,
+     96
+    ],
+    "dtype": "float32",
+    "uncertain": false
+   },
+   {
+    "from": "head",
+    "to": "$out",
+    "outIndex": 0,
+    "shape": [
+     1,
+     1
+    ],
+    "dtype": "float32",
+    "uncertain": false
+   }
+  ]
+ }
+}

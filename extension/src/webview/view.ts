@@ -9,7 +9,7 @@ export type VNode = {
   id: string;
   label: string;
   sublabel: string;
-  kind: "module" | "op" | "group" | "terminal";
+  kind: "module" | "op" | "group" | "concept" | "terminal";
   expandable: boolean;
   expanded: boolean;
   node: Node | null; // null for terminals

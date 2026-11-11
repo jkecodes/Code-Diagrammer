@@ -14,7 +14,7 @@ export type Edge = {
 export type Node = {
   id: string;
   name: string;
-  kind: "module" | "op" | "group";
+  kind: "module" | "op" | "group" | "concept"; // "concept": a named group of blocks (paper view only)
   type: string;
   source: SourceRange | null;
   params: number | null; // all parameters, including frozen ones
@@ -23,6 +23,7 @@ export type Node = {
   repeated: boolean;
   children: Node[];
   edges: Edge[];
+  description?: string; // concept nodes: what the group does
 };
 
 export type InputSpec = number[] | { shape: number[]; dtype?: string } | { value: unknown };

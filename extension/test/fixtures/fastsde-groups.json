@@ -1,0 +1,29 @@
+{
+  "groups": [
+    {
+      "name": "Subband Split",
+      "description": "Splits the spectrogram features into N non-overlapping frequency subbands and stacks them in the batch dimension.",
+      "nodeIds": ["split", "root/view@177:12"]
+    },
+    {
+      "name": "Shared Subband Encoder",
+      "description": "The same encoder (Q-blocks) processes every subband; the result is unstacked back to B x N.",
+      "nodeIds": ["enc", "root/view@180:12"]
+    },
+    {
+      "name": "Frequency Pooling",
+      "description": "Average of mean- and max-pooling over the frequency axis.",
+      "nodeIds": ["root/mean@182:17", "root/amax@183:16", "root/add@184:19", "root/mul@184:12"]
+    },
+    {
+      "name": "Subband Fusion",
+      "description": "Concatenates the subbands' channels and fuses them into one sequence.",
+      "nodeIds": ["root/view@186:12", "fuse", "root/permute@188:12", "root/contiguous@188:12"]
+    },
+    {
+      "name": "Temporal Pooling",
+      "description": "Average of mean- and max-pooling over time.",
+      "nodeIds": ["root/mean@194:28", "root/amax@194:44", "root/add@194:28", "root/mul@194:21"]
+    }
+  ]
+}
