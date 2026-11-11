@@ -113,14 +113,18 @@ class TemplateIndex:
         path = os.path.abspath(file)
         if path not in self._files:
             try:
-                with open(path, encoding="utf-8") as f:
+                with open(path, encoding="utf-8-sig") as f:  # a BOM is common on Windows
                     text = f.read()
             except OSError as e:
                 raise StaticError("not-found", f"Cannot read {path}: {e.strerror}") from e
+            except UnicodeDecodeError as e:
+                raise StaticError("syntax", f"{os.path.basename(path)} is not UTF-8 text") from e
             try:
                 tree = ast.parse(text, filename=path)
             except SyntaxError as e:
                 raise StaticError("syntax", f"line {e.lineno}: {e.msg}") from e
+            except ValueError as e:  # e.g. a NUL byte in the source
+                raise StaticError("syntax", str(e)) from e
             self._files[path] = _FileInfo(path, tree)
         return self._files[path]
 

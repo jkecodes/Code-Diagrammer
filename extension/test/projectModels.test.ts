@@ -112,10 +112,20 @@ test("a provider error → all candidates, note carries the provider's message",
   expect([out.models.length, out.note]).toEqual([1, M.LLM_FAILED("quota exceeded")]);
 });
 
-test("consent-declined is rethrown", async () => {
+test("declined consent still lists the candidates, without summaries", async () => {
   const s = service(["x"], { consent: false, grant: false });
-  const e = await projectModels([NET], ROOT, s.llm).catch((x) => x);
-  expect(e instanceof LlmError && e.kind).toBe("consent-declined");
+  const out = await projectModels([NET, GAN], ROOT, s.llm);
+  expect(out.models.map((m) => [m.name, m.summary])).toEqual([["Net", ""], ["Gan", ""]]);
+  expect(out.note).toBe(M.CONSENT_DECLINED);
+  expect(s.provider.prompts).toEqual([]);
+});
+
+test("a cancelled request is rethrown and the signal reaches the model call", async () => {
+  const s = service(["x"]);
+  const abort = new AbortController();
+  abort.abort();
+  const e = await projectModels([NET], ROOT, s.llm, { signal: abort.signal }).catch((x) => x);
+  expect(e instanceof LlmError && e.kind).toBe("cancelled");
 });
 
 test("at most 60 candidates are sent; the rest are appended unsummarised", async () => {

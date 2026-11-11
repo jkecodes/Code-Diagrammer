@@ -84,5 +84,6 @@ test("the python path is resolved for every request", async () => {
 
 test("scans a workspace", async () => {
   const r = await make().scan(path.join(fixtures, "scanproj"));
-  expect(r.ok && r.value.filter((c) => c.candidate).map((c) => c.name)).toEqual(["Net"]);
+  expect(r.ok && r.value.filter((c) => c.candidate).map((c) => c.name).sort())
+    .toEqual(["Net", "UsesLatin", "WithBom"]);
 });

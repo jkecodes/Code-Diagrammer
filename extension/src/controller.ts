@@ -97,8 +97,8 @@ export class DiagramController {
     }
   }
 
-  /** A grouping in flight belongs to the graph that is about to be replaced. */
-  private cancelPaper(): void {
+  /** Aborts a grouping in flight: the user cancelled it, or its graph is about to be replaced. */
+  cancelPaper(): void {
     if (!this.paperAbort) return;
     this.paperAbort.abort();
     this.paperAbort = undefined;

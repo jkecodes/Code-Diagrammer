@@ -401,3 +401,24 @@ test("a disposed controller ignores a finished grouping", async () => {
   await pending;
   expect(s.papers()).toEqual([]);
 });
+
+test("cancelPaper aborts the request, clears busy and posts no paper", async () => {
+  const gate = gated();
+  const s = setup({ group: gate.group });
+  await s.controller.open(s.file);
+  s.posts.length = 0;
+  const pending = s.controller.requestPaper();
+  s.controller.cancelPaper();
+  expect(gate.signals[0].aborted).toBe(true);
+  gate.release();
+  await pending;
+  expect(s.posts).toEqual([{ type: "busy", text: M.GROUPING }, { type: "busy", text: null }]);
+});
+
+test("cancelPaper with nothing in flight posts nothing", async () => {
+  const s = setup();
+  await s.controller.open(s.file);
+  s.posts.length = 0;
+  s.controller.cancelPaper();
+  expect(s.posts).toEqual([]);
+});

@@ -28,6 +28,8 @@ export const PICK_MODEL = "Choose the language model Code Diagrammer should use"
 export const LLM_INVALID_OUTPUT =
   "The language model's answer could not be used. Showing all candidate models instead.";
 export const LLM_FAILED = (reason: string) => "The language model request failed (" + reason + ").";
+export const CONSENT_DECLINED =
+  "Nothing was sent to the language model. Showing all candidate models without summaries.";
 export const NO_WORKSPACE = "Open a folder first.";
 export const NO_PROJECT_MODELS = "No nn.Module classes with a forward method were found in this folder.";
 export const PICK_PROJECT_MODEL = "Main models of this project — pick one to open its diagram";

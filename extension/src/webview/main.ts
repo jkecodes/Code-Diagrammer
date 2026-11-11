@@ -24,6 +24,7 @@ let codeGraph: Graph | null = null;
 let paperGraph: Graph | null = null; // the paper view of codeGraph, when the host has sent one
 let mode: Mode = "code";
 let wantPaper = false; // the user's preference; the paper view is shown whenever one is available
+let grouping = false; // the host is working on a paper view (its busy text is shown)
 let graph: Graph | null = null; // the graph that is drawn: codeGraph or paperGraph
 let view: VNode | null = null;
 let laid: Laid | null = null;
@@ -135,8 +136,14 @@ function choosePaper(regenerate: boolean): void {
   else send({ type: "requestPaper", regenerate });
 }
 
+function setBusy(text: string | null): void {
+  grouping = text !== null;
+  busy.textContent = text ?? "";
+}
+
 function chooseCode(): void {
   wantPaper = false;
+  if (grouping) send({ type: "cancelPaper" });
   if (mode !== "code") show("code", true);
 }
 
@@ -146,6 +153,7 @@ function setGraph(next: Graph): void {
   const wasPaper = mode === "paper";
   codeGraph = next;
   paperGraph = null; // a grouping belongs to exactly one graph; the host re-sends it if it still applies
+  setBusy(null); // so is a grouping in flight: the host has dropped it
 
   title.replaceChildren(next.root.name);
   const meta = document.createElement("span");
@@ -170,7 +178,7 @@ window.addEventListener("message", (event: MessageEvent<HostMessage>) => {
   else if (message.type === "notice") showNotice(message);
   else if (message.type === "clearNotice") showNotice(null);
   else if (message.type === "paper") setPaper(message.graph);
-  else if (message.type === "busy") busy.textContent = message.text ?? "";
+  else if (message.type === "busy") setBusy(message.text);
   else if (message.type === "toggleView") {
     if (mode === "paper") chooseCode();
     else choosePaper(false);

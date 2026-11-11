@@ -70,3 +70,9 @@ Automated tests use a scripted model. These need a real IDE:
 2. **Scan Project Models** on a real project lists its main models with summaries.
 3. **Paper** on a traced diagram gives sensible, named stages; shapes match the Code view.
 4. `↻` produces a new grouping; switching back to **Code** shows the unchanged diagram.
+5. Declining the "will be sent" question: Scan still lists the models (no summaries); Paper stays on Code.
+6. Dismissing the model picker cancels quietly; nothing is sent.
+7. A saved `codeDiagrammer.llm.model` that the IDE no longer offers: you are asked to choose again.
+8. An IDE without any model: "No language model available", and the diagram still works.
+9. Cancel on the scan progress, and clicking **Code** while "Grouping blocks…" is shown, stop the request.
+10. Opening another diagram while "Grouping blocks…" is shown: the label disappears.

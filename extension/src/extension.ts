@@ -136,14 +136,19 @@ async function scanProject(context: vscode.ExtensionContext): Promise<void> {
     let found: { models: ProjectModel[]; note?: string } | undefined;
     try {
       found = await vscode.window.withProgress(
-        { location: vscode.ProgressLocation.Notification, title: "Code Diagrammer: scanning project models…" },
-        async () => {
+        {
+          location: vscode.ProgressLocation.Notification, cancellable: true,
+          title: "Code Diagrammer: scanning project models…",
+        },
+        async (_progress, token) => {
+          const abort = new AbortController();
+          token.onCancellationRequested(() => abort.abort());
           const scanned = await makeClient(context).scan(root);
           if (!scanned.ok) {
             void vscode.window.showWarningMessage(M.ANALYSIS_FAILED(scanned.error.message));
             return undefined;
           }
-          return projectModels(scanned.value, root, llm, { regenerate });
+          return projectModels(scanned.value, root, llm, { regenerate, signal: abort.signal });
         },
       );
     } catch (e) {
@@ -205,6 +210,7 @@ async function open(context: vscode.ExtensionContext): Promise<void> {
     if (message.type === "openSource") void openSource(message.source);
     else if (message.type === "action") void runAction(message.action);
     else if (message.type === "requestPaper") void controller?.requestPaper(message.regenerate);
+    else if (message.type === "cancelPaper") controller?.cancelPaper();
   };
   const panel = GraphPanel.show(context, onMessage);
 

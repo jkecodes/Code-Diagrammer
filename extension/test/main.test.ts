@@ -226,3 +226,23 @@ test("the toggleView message flips the view", async () => {
   post({ type: "toggleView" });
   await until(() => ids().includes("stem") && !ids().includes("root/concept:0"));
 });
+
+test("a new graph clears a busy label left by an earlier request", async () => {
+  post({ type: "busy", text: "Grouping…" });
+  post({ type: "graph", graph: graph() });
+  expect(document.getElementById("busy")!.textContent).toBe("");
+  await until(() => ids().includes("stem"));
+});
+
+test("choosing Code while a grouping is in flight cancels it", async () => {
+  sent.length = 0;
+  document.getElementById("viewPaper")!.click();
+  expect(sent).toEqual([{ type: "requestPaper", regenerate: false }]);
+  post({ type: "busy", text: "Grouping…" });
+  document.getElementById("viewCode")!.click();
+  expect(sent.at(-1)).toEqual({ type: "cancelPaper" });
+  post({ type: "busy", text: null });
+  sent.length = 0;
+  document.getElementById("viewCode")!.click();
+  expect(sent).toEqual([]); // nothing in flight any more
+});

@@ -14,7 +14,7 @@ def by_name(root=SCANPROJ):
 
 
 def test_lists_module_classes_across_files_and_skips_other_classes():
-    assert set(by_name()) == {"Block", "Unused", "Net"}
+    assert set(by_name()) == {"Block", "Unused", "Net", "UsesLatin", "WithBom"}
 
 
 def test_candidate_has_forward_and_is_nobodys_submodule():
@@ -48,3 +48,18 @@ def test_ignored_directories(tmp_path):
 def test_cli_scan():
     out = call({"command": "scan", "workspaceRoot": str(SCANPROJ)})
     assert out["ok"] and any(c["name"] == "Net" and c["candidate"] for c in out["classes"])
+
+
+def test_importing_from_an_undecodable_file_does_not_hide_the_importer():
+    names = by_name()
+    assert names["UsesLatin"]["candidate"] is True
+    assert "ChildOfLatin" not in names      # its base cannot be read, so it is not known to be a module
+
+
+def test_file_with_a_utf8_bom_is_listed():
+    assert by_name()["WithBom"]["candidate"] is True
+
+
+def test_static_on_an_undecodable_file_is_a_syntax_error_not_an_internal_one():
+    out = call({"command": "list", "file": str(SCANPROJ / "latin1.py")})
+    assert out["ok"] is False and out["error"]["kind"] == "syntax"

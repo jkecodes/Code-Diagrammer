@@ -64,7 +64,8 @@ const plain = (c: ScannedClass): ProjectModel => ({ name: c.name, file: c.file, 
 
 /** Never fails for lack of a model: the candidates are then listed without summaries, with a note. */
 export async function projectModels(
-  classes: ScannedClass[], root: string, llm: LlmService, opts: { regenerate?: boolean } = {},
+  classes: ScannedClass[], root: string, llm: LlmService,
+  opts: { regenerate?: boolean; signal?: AbortSignal } = {},
 ): Promise<{ models: ProjectModel[]; note?: string }> {
   const candidates = classes.filter((c) => c.candidate);
   if (candidates.length === 0) return { models: [] };
@@ -72,13 +73,17 @@ export async function projectModels(
   const rest = candidates.slice(MAX_SENT).map(plain);
   let note: string;
   try {
-    const answer = await llm.ask(projectPrompt(sent, root), { kind: "project-models", regenerate: opts.regenerate });
+    const answer = await llm.ask(projectPrompt(sent, root), {
+      kind: "project-models", regenerate: opts.regenerate, signal: opts.signal,
+    });
     const picked = parseProjectModels(answer.text, sent, root);
     if (picked.length > 0) return { models: [...picked, ...rest] };
     note = M.LLM_INVALID_OUTPUT;
   } catch (e) {
-    if (!(e instanceof LlmError) || e.kind === "consent-declined" || e.kind === "cancelled") throw e;
+    if (!(e instanceof LlmError) || e.kind === "cancelled") throw e;
+    // the plain list needs no model, so it is shown whatever went wrong with the model
     note = e.kind === "no-model" ? M.NO_LANGUAGE_MODEL
+      : e.kind === "consent-declined" ? M.CONSENT_DECLINED
       : e.kind === "invalid-output" ? M.LLM_INVALID_OUTPUT : M.LLM_FAILED(e.message);
   }
   return { models: [...sent.map(plain), ...rest], note };

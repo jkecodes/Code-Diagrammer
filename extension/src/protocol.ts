@@ -18,4 +18,5 @@ export type WebviewMessage =
   | { type: "ready" }
   | { type: "openSource"; source: SourceRange }
   | { type: "action"; action: NoticeAction }
-  | { type: "requestPaper"; regenerate: boolean };
+  | { type: "requestPaper"; regenerate: boolean }
+  | { type: "cancelPaper" };
