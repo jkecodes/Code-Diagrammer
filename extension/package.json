@@ -1,0 +1,63 @@
+{
+  "name": "code-diagrammer",
+  "displayName": "Code Diagrammer",
+  "description": "See a PyTorch model as an expandable architecture diagram with tensor shapes, inside the editor.",
+  "version": "0.1.0",
+  "publisher": "code-diagrammer",
+  "license": "MIT",
+  "engines": { "vscode": "^1.90.0" },
+  "categories": ["Visualization", "Machine Learning"],
+  "main": "./dist/extension.js",
+  "activationEvents": [],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": "limited",
+      "description": "Tracing shapes runs your model code and is disabled in untrusted workspaces."
+    }
+  },
+  "contributes": {
+    "commands": [
+      { "command": "codeDiagrammer.open", "title": "Code Diagrammer: Open Architecture Diagram" },
+      { "command": "codeDiagrammer.traceShapes", "title": "Code Diagrammer: Trace Shapes" },
+      { "command": "codeDiagrammer.selectEntry", "title": "Code Diagrammer: Select Entry Model" }
+    ],
+    "menus": {
+      "editor/title": [
+        { "command": "codeDiagrammer.open", "when": "resourceLangId == python", "group": "navigation" }
+      ]
+    },
+    "configuration": {
+      "title": "Code Diagrammer",
+      "properties": {
+        "codeDiagrammer.pythonPath": {
+          "type": "string",
+          "default": "",
+          "description": "Python interpreter used to analyze models. Empty: use the Python extension's interpreter, or `python` on PATH. Tracing shapes needs Python 3.11+ with torch installed."
+        },
+        "codeDiagrammer.traceTimeoutSeconds": {
+          "type": "number",
+          "default": 60,
+          "description": "Stop Trace Shapes after this many seconds."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "node esbuild.mjs",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "package": "vsce package --no-dependencies"
+  },
+  "dependencies": {
+    "elkjs": "^0.9.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/vscode": "^1.90.0",
+    "@vscode/vsce": "^3.2.0",
+    "esbuild": "^0.24.0",
+    "jsdom": "^25.0.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  }
+}
