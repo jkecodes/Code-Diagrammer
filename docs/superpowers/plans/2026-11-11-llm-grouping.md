@@ -16,6 +16,7 @@
 - The model's output is never trusted: every id, name and file is validated against the IR / scan result; shapes and edges are never taken from it.
 - A failure of any LLM step never replaces the last good view; without a model everything from Milestone 1 keeps working.
 - `scan` must not import torch or execute user code.
+- The model is always the user's choice: with no (valid) `codeDiagrammer.llm.model`, the user picks from the IDE's list and the choice is saved; no model is ever selected silently.
 - Nothing is sent to a model before the one-time consent ("Class signatures and code excerpts will be sent to <model>.") is accepted for the workspace.
 - Cache lives in `<workspace>/.code-diagrammer/cache/`, key = SHA-256 of (kind, model id, prompt). `.gitignore` is not modified.
 - No `vscode` import outside `extension.ts`, `graphPanel.ts` and `vscodeLmProvider.ts` (keeps everything else unit-testable).
@@ -28,7 +29,7 @@
 2. A group that is connected but would create a cycle once collapsed (A → x → A, x outside the group) → dropped, so the paper view stays a DAG.
 3. The graph changes (file saved, shapes traced) while a grouping request is in flight → the stale grouping is discarded, never applied to the newer graph.
 4. A workspace with a file that has a syntax error or a non-UTF-8 byte → `scan` skips that file and still returns the others.
-5. The chosen model id is no longer offered by the IDE → falls back to the first available model and says which one was used; no models at all → "No language model available" notice, candidates still listed.
+5. No model chosen yet, or the chosen model id is no longer offered by the IDE → the user is asked to pick one from the list (never a silent default); dismissing the picker cancels the request; no models at all → "No language model available" notice, candidates still listed.
 
 ## File Structure
 
@@ -136,6 +137,7 @@ export interface LlmProvider {
 ```ts
 export interface LlmHost {
   preferredModelId(): string;                       // the setting, "" if unset
+  pickModel(models: LlmModel[]): Promise<LlmModel | undefined>;  // shows the picker and persists the choice
   hasConsent(): boolean;
   askConsent(modelName: string): Promise<boolean>;  // must persist a "yes" itself
 }
@@ -151,13 +153,16 @@ export class LlmService {
 export function extractJson(text: string): unknown;   // throws LlmError("invalid-output")
 ```
 - `test/fakeProvider.ts`: `class FakeProvider implements LlmProvider { constructor(models: LlmModel[], replies: (string | Error)[]); prompts: string[] }` — replies are consumed in order, the last one repeats.
-- Messages: `M.NO_LANGUAGE_MODEL = "No language model available in this IDE."`, `M.CONSENT(model) = \`Class signatures and code excerpts will be sent to ${model}.\``, `M.MODEL_FALLBACK(name)`.
+- Messages: `M.NO_LANGUAGE_MODEL = "No language model available in this IDE."`, `M.CONSENT(model) = \`Class signatures and code excerpts will be sent to ${model}.\``, `M.PICK_MODEL = "Choose the language model Code Diagrammer should use"`.
 
 - [ ] **Step 1: Write the failing tests** (`llmService.test.ts`, temp cache dir per test):
 
 ```ts
 test("asks the preferred model and returns its text")              // modelId passed == preferred
-test("falls back to the first model when the preferred one is gone") // answer.model.id === models[0].id
+test("no preferred model → the user picks one; the picked model is used")
+test("a preferred model that is gone → the user is asked to pick again")
+test("dismissing the model picker → LlmError cancelled, provider not called, consent not asked")
+test("cached() with no valid preferred model → undefined, and the picker is not shown")
 test("no models → LlmError no-model, consent never asked")
 test("declined consent → LlmError consent-declined, provider not called")
 test("consent is asked once: second ask with hasConsent()=true does not ask")
@@ -174,7 +179,7 @@ test("extractJson", () => {
 });
 ```
 - [ ] **Step 2:** `npx vitest run test/llmService.test.ts`. Expected: FAIL (modules missing).
-- [ ] **Step 3: Implement.** Cache file `<cacheDir>/<sha256(kind + "\n" + modelId + "\n" + prompt)>.json` holding `{text, model}`; write via temp file + rename; a corrupt cache file is a miss. `cached()` resolves the model the same way as `ask()` (preferred, else first) and returns `undefined` when there are no models. `extractJson` scans for the first `{`, then the matching `}` respecting JSON strings and escapes.
+- [ ] **Step 3: Implement.** Cache file `<cacheDir>/<sha256(kind + "\n" + modelId + "\n" + prompt)>.json` holding `{text, model}`; write via temp file + rename; a corrupt cache file is a miss. `ask()` resolves the model as: preferred id if offered, else `host.pickModel(models)` (undefined → `LlmError("cancelled")`); order is models → pick → consent → cache → provider. `cached()` uses only a valid preferred id and returns `undefined` otherwise (it never shows UI). `extractJson` scans for the first `{`, then the matching `}` respecting JSON strings and escapes.
 - [ ] **Step 4:** Run. Expected: PASS.
 - [ ] **Step 5: `VsCodeLmProvider`.** `listModels`: `typeof vscode.lm?.selectChatModels === "function"` else `[]`; map `{id, name, vendor}`. `complete`: select by `{ id }`, `sendRequest([vscode.LanguageModelChatMessage.User(prompt)], {}, token)` with a `CancellationTokenSource` tied to the `AbortSignal`, concatenate `response.text`; wrap failures in `LlmError("provider", ...)`, cancellation in `LlmError("cancelled", ...)`. No unit test (needs a live IDE): verify with `npx tsc --noEmit -p .` — Expected: no errors. Bump `engines.vscode` in `package.json` to `^1.90.0` if it is lower (the `vscode.lm` API) and `@types/vscode` to match.
 - [ ] **Step 6: Commit** `feat: language model service with consent and cache`.

@@ -19,7 +19,7 @@ interface LlmProvider {
 ```
 
 - One implementation, `VsCodeLmProvider`, over `vscode.lm.selectChatModels` / `sendRequest`. Claude and Gemini models are whatever the IDE exposes.
-- Setting `codeDiagrammer.llm.model` holds the chosen model id; a command `Code Diagrammer: Choose Language Model` lists `listModels()`.
+- The model is always chosen by the user. Setting `codeDiagrammer.llm.model` holds the chosen model id; a command `Code Diagrammer: Choose Language Model` lists `listModels()`. If no model is chosen yet (or the chosen one is no longer offered), the first LLM action shows the same picker; no model is ever selected silently, and dismissing the picker cancels the action.
 - **Unverified assumption:** Antigravity exposes `vscode.lm`. If `listModels()` is empty or the API is absent, the extension shows "No language model available" and everything that does not need an LLM keeps working. The provider interface exists so another implementation (e.g. a Gemini API key) can be added without touching callers.
 - First use shows a one-time consent: "Class signatures and code excerpts will be sent to <model>." The answer is remembered per workspace.
 
