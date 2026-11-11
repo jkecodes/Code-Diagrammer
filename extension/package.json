@@ -21,7 +21,8 @@
       { "command": "codeDiagrammer.open", "title": "Code Diagrammer: Open Architecture Diagram" },
       { "command": "codeDiagrammer.traceShapes", "title": "Code Diagrammer: Trace Shapes" },
       { "command": "codeDiagrammer.selectEntry", "title": "Code Diagrammer: Select Entry Model" },
-      { "command": "codeDiagrammer.chooseModel", "title": "Code Diagrammer: Choose Language Model" }
+      { "command": "codeDiagrammer.chooseModel", "title": "Code Diagrammer: Choose Language Model" },
+      { "command": "codeDiagrammer.scanProject", "title": "Code Diagrammer: Scan Project Models" }
     ],
     "menus": {
       "editor/title": [

@@ -25,6 +25,15 @@ export const CONSENT = (model: string) =>
 export const CONSENT_YES = "Send";
 export const PICK_MODEL = "Choose the language model Code Diagrammer should use";
 
+export const LLM_INVALID_OUTPUT =
+  "The language model's answer could not be used. Showing all candidate models instead.";
+export const LLM_FAILED = (reason: string) => "The language model request failed (" + reason + ").";
+export const NO_WORKSPACE = "Open a folder first.";
+export const NO_PROJECT_MODELS = "No nn.Module classes with a forward method were found in this folder.";
+export const PICK_PROJECT_MODEL = "Main models of this project — pick one to open its diagram";
+export const REGENERATE = "↻ Ask the language model again";
+export const MODEL_SET = (name: string) => "Code Diagrammer will use " + name + ".";
+
 export const ACTION_LABELS = {
   trace: "Trace Shapes",
   copyLog: "Copy log",

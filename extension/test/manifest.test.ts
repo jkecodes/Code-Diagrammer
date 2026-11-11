@@ -8,3 +8,10 @@ test("an untrusted workspace cannot choose the interpreter that gets run", () =>
   expect(manifest.capabilities.untrustedWorkspaces.restrictedConfigurations)
     .toContain("codeDiagrammer.pythonPath");
 });
+
+test("language-model commands and the model setting are declared", () => {
+  const commands = manifest.contributes.commands.map((c: { command: string }) => c.command);
+  expect(commands).toContain("codeDiagrammer.chooseModel");
+  expect(commands).toContain("codeDiagrammer.scanProject");
+  expect(manifest.contributes.configuration.properties["codeDiagrammer.llm.model"].default).toBe("");
+});
