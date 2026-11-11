@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "code_diagrammer"
+version = "0.1.0"
+description = "Turn PyTorch model code into an architecture graph with tensor shapes"
+requires-python = ">=3.11"
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[tool.setuptools]
+packages = ["code_diagrammer"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
