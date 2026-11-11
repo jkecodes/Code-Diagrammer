@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 import * as path from "node:path";
-import type { ClassInfo, Graph, InputSpec } from "./ir";
+import type { ClassInfo, Graph, InputSpec, ScannedClass } from "./ir";
 
 export type AnalyzerError = {
   kind: "python-not-found" | "timeout" | "bad-output" | "syntax" | "not-found" | "bad-request" | "internal";
@@ -31,6 +31,10 @@ export class AnalyzerClient {
 
   async listClasses(file: string): Promise<Result<ClassInfo[]>> {
     return this.run({ command: "list", file }, (r) => r.classes as ClassInfo[]);
+  }
+
+  async scan(workspaceRoot: string): Promise<Result<ScannedClass[]>> {
+    return this.run({ command: "scan", workspaceRoot }, (r) => r.classes as ScannedClass[]);
   }
 
   async analyzeStatic(req: StaticRequest): Promise<Result<Graph>> {

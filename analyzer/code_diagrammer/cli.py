@@ -47,6 +47,9 @@ def handle(request: dict) -> dict:
             root = request.get("workspaceRoot") or os.path.dirname(os.path.abspath(request["file"]))
             graph = build_static_graph(TemplateIndex(root), request["file"], request["entry"])
             return {"ok": True, "graph": graph.to_dict()}
+        if command == "scan":
+            from .scan import scan_workspace
+            return {"ok": True, "classes": scan_workspace(request["workspaceRoot"])}
         if command == "trace":
             return _trace(request)
         return _error("bad-request", f"Unknown command: {command!r}")

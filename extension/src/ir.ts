@@ -49,5 +49,15 @@ export type ClassInfo = {
   forwardParams: ParamInfo[];
 };
 
+export type ScannedClass = {
+  name: string;
+  file: string;
+  line: number;
+  forwardParams: string[];
+  docstring: string;
+  submoduleTypes: string[];
+  candidate: boolean; // has forward and is no other workspace class's submodule
+};
+
 export const IN = "$in";
 export const OUT = "$out";

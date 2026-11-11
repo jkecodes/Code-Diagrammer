@@ -81,3 +81,8 @@ test("the python path is resolved for every request", async () => {
   current = PY;
   expect((await client.listClasses(cnn)).ok).toBe(true);
 });
+
+test("scans a workspace", async () => {
+  const r = await make().scan(path.join(fixtures, "scanproj"));
+  expect(r.ok && r.value.filter((c) => c.candidate).map((c) => c.name)).toEqual(["Net"]);
+});
