@@ -19,5 +19,14 @@ test("language-model commands and the model setting are declared", () => {
 test("the paper view command is declared", () => {
   const commands = manifest.contributes.commands.map((c: { command: string }) => c.command);
   expect(commands).toContain("codeDiagrammer.togglePaperView");
-  expect(manifest.version).toBe("0.2.0");
+
+});
+
+test("the project command is contributed and the stages command is renamed", () => {
+  const titles = Object.fromEntries(
+    manifest.contributes.commands.map((c: { command: string; title: string }) => [c.command, c.title]));
+  expect(titles["codeDiagrammer.openProject"]).toBe("Code Diagrammer: Open Project Architecture");
+  expect(titles["codeDiagrammer.togglePaperView"]).toBe("Code Diagrammer: Toggle Stages View");
+  expect(titles["codeDiagrammer.testModel"]).toBe("Code Diagrammer: Test Language Model");
+  expect(manifest.version).toBe("0.3.0");
 });

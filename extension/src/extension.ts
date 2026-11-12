@@ -1,15 +1,18 @@
 // VS Code glue: commands, settings, and the editor side of the controller's Host.
+import * as fs from "node:fs";
 import * as path from "node:path";
 import * as vscode from "vscode";
 import { AnalyzerClient } from "./analyzerClient";
-import { DiagramController, type Host } from "./controller";
-import { configPath, loadEntry, saveEntry } from "./entryConfig";
+import { type Active, DiagramController, type Host } from "./controller";
+import { configPath, loadEntry, loadStyles, saveEntry } from "./entryConfig";
 import { GraphPanel } from "./graphPanel";
-import * as fs from "node:fs";
 import type { SourceRange } from "./ir";
 import { groupGraph } from "./llm/grouping";
 import { projectModels, type ProjectModel } from "./llm/projectModels";
 import { LlmError, type LlmModel } from "./llm/provider";
+import { classRoles } from "./llm/roles";
+import { loadRoles, saveRoles } from "./llm/rolesStore";
+import { testLanguageModel } from "./llm/selfTest";
 import { LlmService, type LlmHost } from "./llm/service";
 import { VsCodeLmProvider } from "./llm/vscodeLmProvider";
 import * as M from "./messages";
@@ -17,6 +20,24 @@ import type { NoticeAction, WebviewMessage } from "./protocol";
 
 let controller: DiagramController | undefined;
 let workspaceRoot: string | undefined;
+
+/** A Python file in a workspace folder, and where the cursor is in it. */
+type Target = Active & { root: string };
+/** A click inside the diagram leaves no active editor, so the last Python editor is remembered. */
+let lastPython: Target | undefined;
+
+function targetOf(editor: vscode.TextEditor | undefined): Target | undefined {
+  const document = editor?.document;
+  if (!editor || !document || document.languageId !== "python" || document.uri.scheme !== "file") return undefined;
+  const folder = vscode.workspace.getWorkspaceFolder(document.uri);
+  if (!folder) return undefined;
+  return { file: document.fileName, line: editor.selection.active.line + 1, root: folder.uri.fsPath };
+}
+
+/** The Python file the user is working on. */
+function currentPython(): Target | undefined {
+  return targetOf(vscode.window.activeTextEditor) ?? lastPython;
+}
 
 function pythonPath(): string {
   const own = vscode.workspace.getConfiguration("codeDiagrammer").get<string>("pythonPath", "").trim();
@@ -74,6 +95,8 @@ async function traceShapes(): Promise<void> {
 
 const provider = new VsCodeLmProvider();
 const CONSENT_KEY = "codeDiagrammer.llmConsent";
+const preferredModelId = () =>
+  vscode.workspace.getConfiguration("codeDiagrammer").get<string>("llm.model", "").trim();
 
 function makeClient(context: vscode.ExtensionContext): AnalyzerClient {
   const seconds = vscode.workspace.getConfiguration("codeDiagrammer").get<number>("traceTimeoutSeconds", 60);
@@ -98,8 +121,7 @@ async function pickModel(models: LlmModel[]): Promise<LlmModel | undefined> {
 
 function llmService(context: vscode.ExtensionContext, root: string): LlmService {
   const host: LlmHost = {
-    preferredModelId: () =>
-      vscode.workspace.getConfiguration("codeDiagrammer").get<string>("llm.model", "").trim(),
+    preferredModelId,
     pickModel,
     hasConsent: () => context.workspaceState.get<boolean>(CONSENT_KEY, false),
     askConsent: async (modelName) => {
@@ -121,6 +143,20 @@ async function chooseModel(): Promise<void> {
   }
   const picked = await pickModel(models);
   if (picked) void vscode.window.showInformationMessage(M.MODEL_SET(picked.name));
+}
+
+/** Sends one fixed question to the chosen model and tells the user whether it works here. */
+async function testModel(): Promise<void> {
+  const result = await vscode.window.withProgress(
+    { location: vscode.ProgressLocation.Notification, title: M.TEST_RUNNING },
+    () => testLanguageModel(provider, preferredModelId()),
+  );
+  if (result.ok) {
+    void vscode.window.showInformationMessage(result.report);
+    return;
+  }
+  const choose = M.ACTION_LABELS.chooseModel;
+  if (await vscode.window.showWarningMessage(result.report, choose) === choose) await chooseModel();
 }
 
 async function scanProject(context: vscode.ExtensionContext): Promise<void> {
@@ -179,11 +215,7 @@ async function scanProject(context: vscode.ExtensionContext): Promise<void> {
     await vscode.window.showTextDocument(document, {
       viewColumn: vscode.ViewColumn.One, selection: new vscode.Range(line, 0, line, 0),
     });
-    // start the diagram from the picked class; inputs saved for that class are kept
-    if (loadEntry(root, model.file)?.className !== model.name) {
-      saveEntry(root, model.file, { className: model.name, ctorKwargs: {}, inputs: {} });
-    }
-    await open(context);
+    await openModel(context, root, model.file, model.name);
     return;
   }
 }
@@ -197,46 +229,107 @@ function readLines(file: string, start: number, end: number): string[] {
   }
 }
 
-async function open(context: vscode.ExtensionContext): Promise<void> {
-  const document = vscode.window.activeTextEditor?.document;
-  const folder = document ? vscode.workspace.getWorkspaceFolder(document.uri) : undefined;
-  if (!document || document.languageId !== "python" || document.uri.scheme !== "file" || !folder) {
-    void vscode.window.showInformationMessage(M.NOT_A_PYTHON_FILE);
-    return;
-  }
-  workspaceRoot = folder.uri.fsPath;
-
+/** A fresh controller, shown in the diagram panel, for the workspace folder `root`. */
+function attach(context: vscode.ExtensionContext, root: string): DiagramController {
+  workspaceRoot = root;
   const onMessage = (message: WebviewMessage) => {
     if (message.type === "openSource") void openSource(message.source);
     else if (message.type === "action") void runAction(message.action);
-    else if (message.type === "requestPaper") void controller?.requestPaper(message.regenerate);
+    else if (message.type === "requestPaper") void controller?.requestPaper(message.regenerate, message.scopeId);
     else if (message.type === "cancelPaper") controller?.cancelPaper();
+    else if (message.type === "switchView") void (message.view === "project" ? openProject(context) : open(context));
+    else if (message.type === "locate") controller?.locate(currentPython());
+    else if (message.type === "openModel") void openModel(context, root, message.file, message.className);
   };
   const panel = GraphPanel.show(context, onMessage);
 
-  const client = makeClient(context);
-  const llm = llmService(context, workspaceRoot);
+  const llm = llmService(context, root);
+  // when the model list had to do without the language model, the roles are not asked for either:
+  // the user would get the same picker or consent question a second time
+  let modelAnswered = true;
   const host: Host = {
     isTrusted: () => vscode.workspace.isTrusted,
     pickClass: (names) => Promise.resolve(vscode.window.showQuickPick(names, { placeHolder: M.PICK_CLASS })),
     post: (message) => panel.post(message),
     openConfigFile,
     group: async (graph, opts) => (await groupGraph(graph, llm, readLines, opts))?.paper,
-    pickModels: async () => ({ models: [] }),
-    roles: async () => ({}),
-    savedRoles: () => ({}),
-    styles: () => ({}),
+    pickModels: async (classes, signal) => {
+      const found = await projectModels(classes, root, llm, { signal });
+      modelAnswered = found.note === undefined;
+      return found;
+    },
+    roles: async (classes, signal) => {
+      if (!modelAnswered) return loadRoles(root);
+      try {
+        const roles = await classRoles(classes, llm, { signal });
+        saveRoles(root, roles);
+        return roles;
+      } catch (e) {
+        if (e instanceof LlmError && e.kind !== "cancelled") return loadRoles(root);
+        throw e;
+      }
+    },
+    savedRoles: () => loadRoles(root),
+    styles: () => loadStyles(root),
   };
   controller?.dispose();
-  controller = new DiagramController(client, host, workspaceRoot);
-  await controller.open(document.fileName);
+  controller = new DiagramController(makeClient(context), host, root);
+  return controller;
+}
+
+/** The diagram of one file's model: the given file, else the Python file the user is working on. */
+async function open(context: vscode.ExtensionContext, file?: string): Promise<void> {
+  const explicit = file
+    ? vscode.workspace.getWorkspaceFolder(vscode.Uri.file(file))?.uri.fsPath ?? workspaceRoot
+    : undefined;
+  const target = file && explicit ? { file, root: explicit } : currentPython();
+  if (!target) {
+    void vscode.window.showInformationMessage(M.NOT_A_PYTHON_FILE);
+    return;
+  }
+  await attach(context, target.root).open(target.file);
+}
+
+/** The diagram of `className` on its own (where its shapes can be traced). */
+async function openModel(
+  context: vscode.ExtensionContext, root: string, file: string, className: string,
+): Promise<void> {
+  // start the diagram from that class; inputs saved for the same class are kept
+  if (loadEntry(root, file)?.className !== className) {
+    saveEntry(root, file, { className, ctorKwargs: {}, inputs: {} });
+  }
+  await open(context, file);
+}
+
+/** One diagram of every main model of the workspace folder, located on the user's file. */
+async function openProject(context: vscode.ExtensionContext): Promise<void> {
+  const target = currentPython();
+  const first = vscode.workspace.workspaceFolders?.find((f) => f.uri.scheme === "file");
+  const root = target?.root ?? first?.uri.fsPath;
+  if (!root) {
+    void vscode.window.showInformationMessage(M.NO_WORKSPACE);
+    return;
+  }
+  // keep the diagram that is open (and its controller) until the project is ready: cancelling
+  // must leave the panel as it was
+  const current = controller && workspaceRoot === root && GraphPanel.active ? controller : attach(context, root);
+  await vscode.window.withProgress(
+    { location: vscode.ProgressLocation.Notification, cancellable: true, title: M.PROJECT_SCANNING },
+    async (_progress, token) => {
+      const abort = new AbortController();
+      token.onCancellationRequested(() => abort.abort());
+      await current.openProject(target && { file: target.file, line: target.line }, abort.signal);
+    },
+  );
 }
 
 export function activate(context: vscode.ExtensionContext): void {
   let cursorTimer: ReturnType<typeof setTimeout> | undefined;
+  lastPython = targetOf(vscode.window.activeTextEditor);
 
   context.subscriptions.push(
     vscode.commands.registerCommand("codeDiagrammer.open", () => open(context)),
+    vscode.commands.registerCommand("codeDiagrammer.openProject", () => openProject(context)),
     vscode.commands.registerCommand("codeDiagrammer.traceShapes", traceShapes),
     vscode.commands.registerCommand("codeDiagrammer.selectEntry", async () => {
       if (!controller) {
@@ -246,6 +339,7 @@ export function activate(context: vscode.ExtensionContext): void {
       await controller.selectEntry();
     }),
     vscode.commands.registerCommand("codeDiagrammer.chooseModel", chooseModel),
+    vscode.commands.registerCommand("codeDiagrammer.testModel", testModel),
     vscode.commands.registerCommand("codeDiagrammer.togglePaperView", () => {
       if (GraphPanel.active) GraphPanel.active.post({ type: "toggleView" });
       else void vscode.window.showInformationMessage(M.NO_DIAGRAM_OPEN);
@@ -254,14 +348,17 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.workspace.onDidSaveTextDocument((document) => {
       if (document.uri.scheme === "file") void controller?.onFileSaved(document.fileName);
     }),
+    vscode.window.onDidChangeActiveTextEditor((editor) => {
+      lastPython = targetOf(editor) ?? lastPython;
+    }),
     vscode.window.onDidChangeTextEditorSelection((event) => {
-      const document = event.textEditor.document;
-      if (document.languageId !== "python" || document.uri.scheme !== "file") return;
-      if (!GraphPanel.active || !vscode.workspace.getWorkspaceFolder(document.uri)) return;
-      const line = event.selections[0].active.line + 1;
+      const target = targetOf(event.textEditor);
+      if (!target) return;
+      lastPython = target;
+      if (!GraphPanel.active) return;
       clearTimeout(cursorTimer);
       cursorTimer = setTimeout(() => {
-        GraphPanel.active?.post({ type: "cursor", file: document.fileName, line });
+        GraphPanel.active?.post({ type: "cursor", file: target.file, line: target.line });
       }, 100);
     }),
   );

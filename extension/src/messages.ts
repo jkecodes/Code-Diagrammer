@@ -53,3 +53,16 @@ export const PROJECT_INFO = "Showing structure only. Open a model on its own to 
 export const NOT_IN_PROJECT = "This file is not part of any main model.";
 export const MODELS_FAILED = (list: string) => "Could not analyse: " + list + ".";
 export const STYLE_PROBLEMS = (list: string) => 'Ignored in "styles": ' + list + ".";
+
+export const TEST_NO_MODELS =
+  "This IDE offers no language model to extensions, so Scan, Stages and block roles cannot use one.";
+export const TEST_NOT_CHOSEN = (offered: string) =>
+  "No usable model is chosen. Run \"Code Diagrammer: Choose Language Model\" first. Offered here: " + offered + ".";
+export const TEST_REQUEST_FAILED = (model: string, reason: string) =>
+  model + " could not be reached (" + reason + ").";
+export const TEST_BAD_FORMAT = (model: string, reply: string) =>
+  model + " answered, but did not follow the requested JSON format, so its answers may be rejected. It said: " + reply;
+export const TEST_PASSED = (model: string, count: number, seconds: string, reply: string) =>
+  model + " works: it answered in " + seconds + " s in the requested format (" + reply + "). "
+  + (count === 1 ? "1 model offered" : count + " models offered") + " by this IDE.";
+export const TEST_RUNNING = "Code Diagrammer: testing the language model…";
