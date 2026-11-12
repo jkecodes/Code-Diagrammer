@@ -2,7 +2,7 @@
   "name": "code-diagrammer",
   "displayName": "Code Diagrammer",
   "description": "See a PyTorch model as an expandable architecture diagram with tensor shapes, inside the editor.",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "publisher": "code-diagrammer",
   "license": "MIT",
   "engines": { "vscode": "^1.90.0" },
@@ -25,7 +25,9 @@
       { "command": "codeDiagrammer.chooseModel", "title": "Code Diagrammer: Choose Language Model" },
       { "command": "codeDiagrammer.scanProject", "title": "Code Diagrammer: Scan Project Models" },
       { "command": "codeDiagrammer.togglePaperView", "title": "Code Diagrammer: Toggle Stages View" },
-      { "command": "codeDiagrammer.testModel", "title": "Code Diagrammer: Test Language Model" }
+      { "command": "codeDiagrammer.testModel", "title": "Code Diagrammer: Test Language Model" },
+      { "command": "codeDiagrammer.setGeminiKey", "title": "Code Diagrammer: Set Gemini API Key" },
+      { "command": "codeDiagrammer.clearGeminiKey", "title": "Code Diagrammer: Clear Gemini API Key" }
     ],
     "menus": {
       "editor/title": [
@@ -48,7 +50,7 @@
         "codeDiagrammer.llm.model": {
           "type": "string",
           "default": "",
-          "description": "Id of the language model (e.g. a Claude or Gemini model offered by this IDE) used for the project architecture, Scan Project Models, block roles and the Stages view. Empty: you are asked to choose. Use the command \"Code Diagrammer: Choose Language Model\" to pick from the available models."
+          "description": "Id of the language model (a model offered by this IDE, or a Gemini model reached with your own API key) used for the project architecture, Scan Project Models, block roles and the Stages view. Empty: you are asked to choose. Use the command \"Code Diagrammer: Choose Language Model\" to pick from the available models."
         }
       }
     }

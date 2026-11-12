@@ -42,3 +42,8 @@ test("the request fails: the provider's message is shown", async () => {
   expect(out.ok).toBe(false);
   expect(out.report).toContain("quota exceeded");
 });
+
+test("no model at all: the report says how to get one with a Gemini key", async () => {
+  const out = await testLanguageModel(new FakeProvider([], ["x"]), "");
+  expect(out.report).toContain("Set Gemini API Key");
+});

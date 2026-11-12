@@ -28,5 +28,14 @@ test("the project command is contributed and the stages command is renamed", () 
   expect(titles["codeDiagrammer.openProject"]).toBe("Code Diagrammer: Open Project Architecture");
   expect(titles["codeDiagrammer.togglePaperView"]).toBe("Code Diagrammer: Toggle Stages View");
   expect(titles["codeDiagrammer.testModel"]).toBe("Code Diagrammer: Test Language Model");
-  expect(manifest.version).toBe("0.3.0");
+  expect(manifest.version).toBe("0.4.0");
+});
+
+test("the Gemini key commands are contributed, and no setting can hold the key", () => {
+  const titles = Object.fromEntries(
+    manifest.contributes.commands.map((c: { command: string; title: string }) => [c.command, c.title]));
+  expect(titles["codeDiagrammer.setGeminiKey"]).toBe("Code Diagrammer: Set Gemini API Key");
+  expect(titles["codeDiagrammer.clearGeminiKey"]).toBe("Code Diagrammer: Clear Gemini API Key");
+  const settings = Object.keys(manifest.contributes.configuration.properties);
+  expect(settings.filter((s) => /key/i.test(s))).toEqual([]); // the key lives in the IDE's secret storage
 });

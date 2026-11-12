@@ -94,8 +94,16 @@ Colours: `red`, `orange`, `yellow`, `green`, `teal`, `blue`, `purple`, `pink`, `
 
 ## Language model features
 
-These use a language model that your IDE offers to extensions (for example a Claude or Gemini model).
-No API key is configured in this extension.
+These need a language model. There are two ways to get one:
+
+- **A model your IDE offers to extensions.** VS Code does (through GitHub Copilot). Antigravity does not:
+  its own Gemini and Claude are only available to its built-in agent, so its list is empty.
+- **Gemini with your own API key.** Get a key from Google AI Studio, run **Set Gemini API Key** and paste
+  it. The key is checked with Google first and then kept in the IDE's secret storage; it is never written
+  to settings, to the workspace or to a log. **Clear Gemini API Key** removes it. Requests go directly from
+  your machine (in a WSL or remote window: from that machine) to Google, and are billed to your account.
+
+Either way you choose the model yourself:
 
 - **Choose Language Model** lists the models the IDE offers and saves your choice in
   `codeDiagrammer.llm.model`. You are always asked to choose; no model is picked for you. If the list is
@@ -115,7 +123,8 @@ No API key is configured in this extension.
 
 What is sent: class names, `forward` parameter names, docstrings, block types, tensor shapes and up to 15
 source lines per block. You are asked once per workspace before anything is sent. Test Language Model
-sends nothing from your workspace.
+sends nothing from your workspace. With a Gemini API key, what is sent goes to Google under the terms of your
+key; the question before the first request names the model it goes to.
 
 Answers are cached in `.code-diagrammer/cache/` in the workspace, so the model is only asked again when the
 code or the model changes; the roles of the last project view are kept in `.code-diagrammer/roles.json`.
@@ -166,3 +175,8 @@ Automated tests use a scripted model. These need a real IDE:
     both come back.
 25. Cancel **Test Language Model** and **Open Project Architecture** while they run: both stop at once.
 26. Click **File** when the file's own diagram is already shown after Trace Shapes: the shapes stay.
+27. **Set Gemini API Key** with a wrong key: an error with Google's reason, and nothing is saved. With a
+    valid key: the model count is shown, **Choose Language Model** lists Gemini models, and **Test Language
+    Model** passes (Antigravity, and its WSL window).
+28. With a Gemini model chosen: **Open Project Architecture** gives summaries and roles, **Stages** groups.
+29. **Clear Gemini API Key**: the Gemini models disappear from **Choose Language Model**.

@@ -7,6 +7,8 @@ import { type Active, DiagramController, type Host } from "./controller";
 import { configPath, loadEntry, loadStyles, saveEntry } from "./entryConfig";
 import { GraphPanel } from "./graphPanel";
 import type { SourceRange } from "./ir";
+import { CombinedProvider } from "./llm/combinedProvider";
+import { GeminiProvider } from "./llm/geminiProvider";
 import { groupGraph } from "./llm/grouping";
 import { projectModels, type ProjectModel } from "./llm/projectModels";
 import { LlmError, type LlmModel } from "./llm/provider";
@@ -93,7 +95,11 @@ async function traceShapes(): Promise<void> {
   );
 }
 
-const provider = new VsCodeLmProvider();
+// Models come from the IDE (when it offers any to extensions) and from Gemini with the user's own key.
+const GEMINI_SECRET = "codeDiagrammer.geminiApiKey";
+let secrets: vscode.SecretStorage | undefined; // set on activation; the key never leaves it
+const gemini = new GeminiProvider(async () => secrets?.get(GEMINI_SECRET));
+const provider = new CombinedProvider([new VsCodeLmProvider(), gemini]);
 const CONSENT_KEY = "codeDiagrammer.llmConsent";
 const preferredModelId = () =>
   vscode.workspace.getConfiguration("codeDiagrammer").get<string>("llm.model", "").trim();
@@ -136,13 +142,61 @@ function llmService(context: vscode.ExtensionContext, root: string): LlmService 
 }
 
 async function chooseModel(): Promise<void> {
-  const models = await provider.listModels();
+  let models: LlmModel[];
+  try {
+    models = await provider.listModels();
+  } catch (e) {
+    void vscode.window.showWarningMessage(M.LLM_FAILED(e instanceof Error ? e.message : String(e)));
+    return;
+  }
   if (models.length === 0) {
-    void vscode.window.showWarningMessage(M.NO_LANGUAGE_MODEL);
+    const answer = await vscode.window.showWarningMessage(M.NO_LANGUAGE_MODEL, M.SET_GEMINI_KEY);
+    if (answer === M.SET_GEMINI_KEY) await setGeminiKey();
     return;
   }
   const picked = await pickModel(models);
   if (picked) void vscode.window.showInformationMessage(M.MODEL_SET(picked.name));
+}
+
+/** Asks for the key, checks it with Google, and only then keeps it in the IDE's secret storage. */
+async function setGeminiKey(): Promise<void> {
+  if (!secrets) return;
+  const entered = await vscode.window.showInputBox({
+    prompt: M.GEMINI_KEY_PROMPT, password: true, ignoreFocusOut: true,
+  });
+  const key = entered?.trim();
+  if (!key) return;
+  let models: LlmModel[];
+  try {
+    models = await vscode.window.withProgress(
+      { location: vscode.ProgressLocation.Notification, title: M.GEMINI_KEY_CHECKING },
+      () => new GeminiProvider(async () => key).listModels(),
+    );
+  } catch (e) {
+    void vscode.window.showErrorMessage(M.GEMINI_KEY_REJECTED(e instanceof Error ? e.message : String(e)));
+    return;
+  }
+  if (models.length === 0) {
+    void vscode.window.showErrorMessage(M.GEMINI_KEY_NO_MODELS);
+    return;
+  }
+  await secrets.store(GEMINI_SECRET, key);
+  gemini.keyChanged();
+  const choose = M.ACTION_LABELS.chooseModel;
+  if (await vscode.window.showInformationMessage(M.GEMINI_KEY_SAVED(models.length), choose) === choose) {
+    await chooseModel();
+  }
+}
+
+async function clearGeminiKey(): Promise<void> {
+  if (!secrets) return;
+  if (!(await secrets.get(GEMINI_SECRET))) {
+    void vscode.window.showInformationMessage(M.GEMINI_KEY_NONE);
+    return;
+  }
+  await secrets.delete(GEMINI_SECRET);
+  gemini.keyChanged();
+  void vscode.window.showInformationMessage(M.GEMINI_KEY_CLEARED);
 }
 
 /** Sends one fixed question to the chosen model and tells the user whether it works here. */
@@ -351,6 +405,7 @@ async function openProject(context: vscode.ExtensionContext): Promise<void> {
 export function activate(context: vscode.ExtensionContext): void {
   let cursorTimer: ReturnType<typeof setTimeout> | undefined;
   lastPython = targetOf(vscode.window.activeTextEditor);
+  secrets = context.secrets;
 
   context.subscriptions.push(
     vscode.commands.registerCommand("codeDiagrammer.open", () => open(context)),
@@ -365,6 +420,11 @@ export function activate(context: vscode.ExtensionContext): void {
     }),
     vscode.commands.registerCommand("codeDiagrammer.chooseModel", chooseModel),
     vscode.commands.registerCommand("codeDiagrammer.testModel", testModel),
+    vscode.commands.registerCommand("codeDiagrammer.setGeminiKey", setGeminiKey),
+    vscode.commands.registerCommand("codeDiagrammer.clearGeminiKey", clearGeminiKey),
+    context.secrets.onDidChange((event) => {
+      if (event.key === GEMINI_SECRET) gemini.keyChanged(); // set or cleared in another window
+    }),
     vscode.commands.registerCommand("codeDiagrammer.togglePaperView", () => {
       if (GraphPanel.active) GraphPanel.active.post({ type: "toggleView" });
       else void vscode.window.showInformationMessage(M.NO_DIAGRAM_OPEN);

@@ -19,7 +19,9 @@ export const NO_DIAGRAM_OPEN = "Open an architecture diagram first.";
 export const LOG_COPIED = "Log copied to the clipboard.";
 export const PICK_CLASS = "Which model class should the diagram start from?";
 
-export const NO_LANGUAGE_MODEL = "No language model available in this IDE.";
+export const NO_LANGUAGE_MODEL =
+  "No language model available. This IDE offers none to extensions; run \"Code Diagrammer: Set Gemini API Key\" "
+  + "to use Gemini with your own key.";
 export const CONSENT = (model: string) =>
   `Class signatures and code excerpts will be sent to ${model}.`;
 export const CONSENT_YES = "Send";
@@ -55,7 +57,8 @@ export const MODELS_FAILED = (list: string) => "Could not analyse: " + list + ".
 export const STYLE_PROBLEMS = (list: string) => 'Ignored in "styles": ' + list + ".";
 
 export const TEST_NO_MODELS =
-  "This IDE offers no language model to extensions, so Scan, Stages and block roles cannot use one.";
+  "This IDE offers no language model to extensions, so Scan, Stages and block roles cannot use one. "
+  + "Run \"Code Diagrammer: Set Gemini API Key\" to use Gemini with your own key.";
 export const TEST_NOT_CHOSEN = (offered: string) =>
   "No usable model is chosen. Run \"Code Diagrammer: Choose Language Model\" first. Offered here: " + offered + ".";
 export const TEST_REQUEST_FAILED = (model: string, reason: string) =>
@@ -79,3 +82,15 @@ export const NO_MODELS_IN_FOLDER = "No PyTorch models found in this folder.";
 export const PROJECT_SINGLE_ONLY =
   "This works on one model. Right-click a model block and choose Open as single model first.";
 export const PROJECT_STALE = "Files changed since this diagram was made. Click Project to analyse again.";
+
+export const GEMINI_KEY_PROMPT =
+  "Gemini API key (from Google AI Studio). It is kept in this IDE's secret storage, not in settings or files.";
+export const GEMINI_KEY_CHECKING = "Code Diagrammer: checking the Gemini API key…";
+export const GEMINI_KEY_REJECTED = (reason: string) =>
+  "The key was not saved: Google did not accept it (" + reason + ").";
+export const GEMINI_KEY_NO_MODELS = "The key was not saved: it gives access to no Gemini model that can generate text.";
+export const GEMINI_KEY_SAVED = (count: number) =>
+  "Gemini API key saved. " + count + " Gemini models are available; choose one to use it.";
+export const GEMINI_KEY_CLEARED = "The Gemini API key was removed from this IDE.";
+export const GEMINI_KEY_NONE = "No Gemini API key is saved.";
+export const SET_GEMINI_KEY = "Set Gemini API Key";
