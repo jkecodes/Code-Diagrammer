@@ -1,12 +1,9 @@
 // Which diagram nodes correspond to the editor cursor. Pure functions.
 import type { Graph, Node } from "../ir";
+import { normalizePath } from "../locate";
 import type { VNode } from "./view";
 
-/** Forward slashes; Windows drive paths compare case-insensitively. */
-export function normalizePath(p: string): string {
-  const slashed = p.replace(/\\/g, "/");
-  return /^[a-zA-Z]:\//.test(slashed) ? slashed.toLowerCase() : slashed;
-}
+export { normalizePath };
 
 /**
  * Ids of the innermost nodes whose source range contains `line` (1-based).
