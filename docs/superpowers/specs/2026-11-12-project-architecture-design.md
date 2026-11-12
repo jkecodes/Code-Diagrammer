@@ -48,22 +48,47 @@ Module blocks whose class is defined in the workspace already carry that class's
 - `groupGraph` gains an optional scope: the id of the block whose children are grouped (default: today's rule, root with wrapper descent). The wrapper descent applies from the scope.
 - In the Project view, `Stages` applies to **one** main model: the one containing the selected block, else the one containing the located blocks, else the first. Its block is replaced by the grouped version in place; other models are untouched. One request per model, cached per model as today. Choosing `Blocks` restores the ungrouped project graph.
 
-## 6. Errors
+## 6. Roles: block shapes and colours
+
+Papers draw blocks by role (an encoder narrows, a decoder widens, discriminators such as MPD/MSD are trapezoids). Blocks get a **role**; each role has a fixed shape and colour.
+
+| role | shape (flow runs left → right) | colour |
+|---|---|---|
+| `encoder` | trapezoid, narrowing to the right | blue |
+| `decoder` | trapezoid, widening to the right | green |
+| `discriminator` | trapezoid, narrowing to the right | red |
+| `attention` | hexagon | purple |
+| `sequence` (RNN, state-space, Mamba, transformer stack) | rectangle | teal |
+| `embedding` | rounded rectangle | yellow |
+| `head` (classifier, regression, output projection) | rounded rectangle | orange |
+| `loss` | rounded rectangle | pink |
+| `other` / none | rectangle (today's look) | none |
+
+- **Who decides.** Roles are assigned per **class name**, so every block of that class looks the same at any depth and in both views. One language-model request per project: the workspace classes found by `scan` (name, docstring, submodule types, forward parameters; at most 150, main models first) → JSON `{"roles": [{"name": "ClassName", "role": "encoder"}]}`. Validation in code: unknown class names and roles outside the table are dropped; a class listed twice keeps its first role. Cached like every other request; uses the same consent.
+- **When.** The request is made while the Project view is built (after the model list). The File view only uses roles already cached for the workspace; it never asks on its own. Stage blocks (section 5) may carry an optional `role` per group in the grouping answer, validated against the same table.
+- **Overrides.** `.vscode/code-diagrammer.json` gains `"styles": { "MultiPeriodDiscriminator": { "role": "discriminator" }, "MyBlock": { "shape": "trapezoid-wide", "color": "purple" } }`. An entry may give a `role`, or a `shape` and/or `color`; overrides always win over the language model, and work without any language model. Shapes: `rect`, `rounded`, `trapezoid-narrow`, `trapezoid-wide`, `hexagon`. Colours: `red`, `orange`, `yellow`, `green`, `teal`, `blue`, `purple`, `pink`, `gray`, `none`. Unknown values are ignored and reported in one warning notice.
+- **Applying.** A pure function `applyStyles(graph, roles, overrides)` sets an optional `look: { role?, shape, color }` on module and concept nodes. The analyzer and the IR it produces are unchanged.
+- **Drawing.** The shape is drawn inside the block's existing layout box, so layout does not change. Collapsed blocks get the shape and a tinted fill; expanded blocks keep a rectangular frame with a tinted border and title. Ops keep today's look. Colours are theme variables with light and dark values; text contrast must hold in both. Selection and cursor highlights still show on shaped blocks. The details panel shows "Role".
+- Without a language model and without overrides, every block looks as it does today.
+
+## 7. Errors
 
 - No workspace folder, Python not found, scan failure: the same notices and actions as Scan/Open today; the last good diagram stays.
 - Zero candidates: notice "No PyTorch models found in this folder."
 - Cancelling the progress leaves the panel as it was.
 
-## 7. Testing
+## 8. Testing
 
 - `buildProjectGraph`: id prefixing (nodes and edges, `$in`/`$out` untouched), no id collisions between two models with equal structure, failed model → leaf, `meta.project` contents, inputs not mutated.
 - `locateTargets`: cursor inside a class; cursor outside any class; class used several times; file with no block; nested classes of the same file (outermost only).
 - Webview: `locate` expands ancestors and fits; a cursor message alone does not change expansion or zoom; `File | Project` switch requests the right view; the "not part of any main model" notice.
 - Controller: project request posts progress → graph → locate; one model failing still posts a graph plus a warning; stale and cancelled requests post nothing; a save of a model's source file rebuilds; `Stages` in the project view groups only the chosen model.
 - Analyzer client: static analysis of two classes in sequence on the existing fixtures.
-- **Not testable automatically:** layout quality with many large models, performance on a real project (twelve static analyses in a row), behaviour in Antigravity/WSL. These go to the README manual checklist.
+- Roles: parsing and validation of the role answer (unknown class, unknown role, duplicate); override parsing (role, shape/colour, unknown values → warning); `applyStyles` precedence (override > model > none), same class at several depths, concept nodes, input not mutated; rendering of each shape inside the layout box, tinted expanded frame, highlight classes still applied; File view uses cached roles and sends no request.
+- **Not testable automatically:** layout quality with many large models, whether a live model's roles are sensible, how the shapes and colours look in real light and dark themes, performance on a real project (twelve static analyses in a row), behaviour in Antigravity/WSL. These go to the README manual checklist.
 
-## 8. Open items for the user
+## 9. Open items for the user
 
 - Twelve models and twenty expanded targets are guesses; both are constants.
 - Tensor shapes in the project view would need each model's input configuration; left for a later version.
+- The role table (names, shapes, colours) is a first proposal and is easy to change before implementation.
