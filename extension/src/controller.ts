@@ -2,12 +2,19 @@
 import * as path from "node:path";
 import type { AnalyzerClient, AnalyzerError } from "./analyzerClient";
 import { type EntryConfig, loadEntry, saveEntry, templateFor } from "./entryConfig";
-import type { ClassInfo, Graph } from "./ir";
+import type { ClassInfo, Graph, ScannedClass } from "./ir";
+import type { ProjectModel } from "./llm/projectModels";
 import { LlmError } from "./llm/provider";
+import { locateTargets } from "./locate";
+import { applyStyles, type RoleMap, type StyleOverride } from "./look";
+import { buildProjectGraph, MAX_PROJECT_MODELS, type ProjectPart } from "./project/projectGraph";
 import * as M from "./messages";
 import type { HostMessage } from "./protocol";
 
-export type AnalyzerClientLike = Pick<AnalyzerClient, "listClasses" | "analyzeStatic" | "trace">;
+export type AnalyzerClientLike = Pick<AnalyzerClient, "listClasses" | "analyzeStatic" | "trace" | "scan">;
+
+/** Where the user is in the editor: a file and a 1-based line. */
+export type Active = { file: string; line: number };
 
 export interface Host {
   isTrusted(): boolean;
@@ -19,8 +26,16 @@ export interface Host {
    * call the model or show UI, and resolves to undefined when nothing is cached. May throw LlmError.
    */
   group(
-    graph: Graph, opts: { regenerate?: boolean; cacheOnly?: boolean; signal: AbortSignal },
+    graph: Graph, opts: { regenerate?: boolean; cacheOnly?: boolean; signal: AbortSignal; scope?: string },
   ): Promise<Graph | undefined>;
+  /** The project's main models, most important first. Throws LlmError("cancelled") when cancelled. */
+  pickModels(classes: ScannedClass[], signal: AbortSignal): Promise<{ models: ProjectModel[]; note?: string }>;
+  /** Class roles for the project; falls back to the saved ones. Throws only LlmError("cancelled"). */
+  roles(classes: ScannedClass[], signal: AbortSignal): Promise<RoleMap>;
+  /** The roles the last project view obtained. Never asks the language model. */
+  savedRoles(): RoleMap;
+  /** The user's "styles" from the workspace's config file. */
+  styles(): Record<string, StyleOverride>;
 }
 
 function samePath(a: string, b: string): boolean {
@@ -38,6 +53,8 @@ export class DiagramController {
   private seq = 0;
   private disposed = false;
   private paperAbort: AbortController | undefined;
+  private project = false; // the graph shows every main model of the workspace, not one file's model
+  private lastActive: Active | undefined;
 
   constructor(
     private readonly client: AnalyzerClientLike,
@@ -59,6 +76,10 @@ export class DiagramController {
     return this.file;
   }
 
+  get isProject(): boolean {
+    return this.project;
+  }
+
   /** After this the controller no longer posts: a newer diagram replaced it. */
   dispose(): void {
     this.disposed = true;
@@ -67,16 +88,18 @@ export class DiagramController {
   }
 
   /** Asks the language model to group the current graph's blocks and posts the paper view. */
-  async requestPaper(regenerate = false): Promise<void> {
+  async requestPaper(regenerate = false, scopeId?: string): Promise<void> {
     const graph = this._graph;
     if (!graph || this.disposed) return;
+    // a project graph is grouped one model at a time
+    const scope = this.project ? scopeId ?? graph.root.children[0]?.id : undefined;
     this.paperAbort?.abort();
     const abort = new AbortController();
     this.paperAbort = abort;
     this.host.post({ type: "busy", text: M.GROUPING });
     const current = () => !this.disposed && this.paperAbort === abort && this._graph === graph;
     try {
-      const paper = await this.host.group(graph, { regenerate, signal: abort.signal });
+      const paper = await this.host.group(graph, { regenerate, signal: abort.signal, scope });
       if (current() && paper) this.host.post({ type: "paper", graph: paper });
     } catch (e) {
       if (!current()) return;
@@ -107,6 +130,7 @@ export class DiagramController {
 
   /** Posts the paper view when a grouping of exactly this graph is already cached. */
   private async offerCachedPaper(graph: Graph): Promise<void> {
+    if (this.project) return; // which model to group is the user's choice there
     let paper: Graph | undefined;
     try {
       paper = await this.host.group(graph, { cacheOnly: true, signal: new AbortController().signal });
@@ -191,9 +215,10 @@ export class DiagramController {
       this.fail(result.error);
       return;
     }
+    const graph = this.styled(result.value);
     this.cancelPaper();
-    this._graph = result.value;
-    this.host.post({ type: "graph", graph: result.value });
+    this._graph = graph;
+    this.host.post({ type: "graph", graph });
     const reason = result.value.meta.traceError;
     if (reason) {
       this._lastLog = result.log ?? reason;
@@ -201,11 +226,15 @@ export class DiagramController {
     } else {
       this.host.post({ type: "clearNotice" });
     }
-    await this.offerCachedPaper(result.value);
+    await this.offerCachedPaper(graph);
   }
 
   /** Reacts to the open file and to any file that defines a block shown in the diagram. */
   async onFileSaved(file: string): Promise<void> {
+    if (this.project) {
+      if (this.showsFile(file)) await this.openProject(this.lastActive, new AbortController().signal);
+      return;
+    }
     if (!this.file) return;
     if (!samePath(file, this.file) && !this.showsFile(file)) return;
     const entry = loadEntry(this.workspaceRoot, this.file);
@@ -243,12 +272,113 @@ export class DiagramController {
       this.fail(result.error);
       return;
     }
+    const graph = this.styled(result.value);
     this.cancelPaper();
     this.file = file; // only a file that analyzed successfully becomes the open diagram
-    this._graph = result.value;
-    this.host.post({ type: "graph", graph: result.value });
+    this.project = false;
+    this._graph = graph;
+    this.host.post({ type: "graph", graph });
     this.host.post({ type: "notice", level: "info", text: notice, action: "trace" });
-    await this.offerCachedPaper(result.value);
+    await this.offerCachedPaper(graph);
+  }
+
+  /** A single model's graph with the looks the workspace already knows; never asks the model. */
+  private styled(graph: Graph): Graph {
+    return applyStyles(graph, this.host.savedRoles(), this.host.styles()).graph;
+  }
+
+  /**
+   * One diagram of every main model of the workspace, located on what the user is editing.
+   * Nothing is imported or executed. A cancelled or outdated request posts nothing.
+   */
+  async openProject(active: Active | undefined, signal: AbortSignal): Promise<void> {
+    const token = this.begin();
+    const dead = () => signal.aborted || this.stale(token);
+    const cancelled = (e: unknown) => e instanceof LlmError && e.kind === "cancelled";
+
+    const scanned = await this.client.scan(this.workspaceRoot);
+    if (dead()) return;
+    if (!scanned.ok) {
+      this.fail(scanned.error);
+      return;
+    }
+    let picked: { models: ProjectModel[]; note?: string };
+    try {
+      picked = await this.host.pickModels(scanned.value, signal);
+    } catch (e) {
+      if (cancelled(e)) return;
+      throw e;
+    }
+    if (dead()) return;
+    const models = picked.models.slice(0, MAX_PROJECT_MODELS);
+    if (models.length === 0) {
+      this.host.post({ type: "notice", level: "warn", text: M.NO_PROJECT_MODELS });
+      return;
+    }
+
+    const parts: ProjectPart[] = [];
+    const failed: string[] = [];
+    let firstError: AnalyzerError | undefined;
+    for (const model of models) {
+      const result = await this.client.analyzeStatic({
+        file: model.file, entry: model.name, workspaceRoot: this.workspaceRoot,
+      });
+      if (dead()) return;
+      parts.push({ ...model, graph: result.ok ? result.value : null });
+      if (!result.ok) {
+        failed.push(`${model.name} (${result.error.kind})`);
+        firstError ??= result.error;
+      }
+    }
+    if (firstError && failed.length === models.length) {
+      this.fail(firstError);
+      return;
+    }
+
+    let roles: RoleMap;
+    try {
+      roles = await this.host.roles(scanned.value, signal);
+    } catch (e) {
+      if (cancelled(e)) return;
+      throw e;
+    }
+    if (dead()) return;
+
+    const { graph, problems } = applyStyles(
+      buildProjectGraph(path.basename(this.workspaceRoot), parts), roles, this.host.styles(),
+    );
+    this.cancelPaper();
+    this.file = undefined;
+    this.project = true;
+    this.lastActive = active;
+    this._graph = graph;
+    this.host.post({ type: "graph", graph });
+
+    const targets = active ? locateTargets(graph, active.file, active.line) : [];
+    if (failed.length > 0) {
+      this.host.post({ type: "notice", level: "warn", text: M.MODELS_FAILED(failed.join(", ")) });
+    } else if (picked.note) {
+      this.host.post({ type: "notice", level: "warn", text: picked.note });
+    } else if (problems.length > 0) {
+      this.host.post({ type: "notice", level: "warn", text: M.STYLE_PROBLEMS(problems.join("; ")) });
+    } else if (active && targets.length === 0) {
+      this.host.post({ type: "notice", level: "info", text: M.NOT_IN_PROJECT });
+    } else {
+      this.host.post({ type: "notice", level: "info", text: M.PROJECT_INFO });
+    }
+    this.host.post({ type: "locate", ids: targets });
+  }
+
+  /** Points the diagram at the blocks the user's file defines. */
+  locate(active: Active | undefined): void {
+    const graph = this._graph;
+    if (!graph || this.disposed) return;
+    if (active) this.lastActive = active;
+    const ids = active ? locateTargets(graph, active.file, active.line) : [];
+    this.host.post({ type: "locate", ids });
+    if (this.project && active && ids.length === 0) {
+      this.host.post({ type: "notice", level: "info", text: M.NOT_IN_PROJECT });
+    }
   }
 
   /** Keeps the last good graph; only reports. */

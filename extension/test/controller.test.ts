@@ -34,6 +34,9 @@ function fail(kind: AnalyzerError["kind"], message = "boom"): Result<never> {
 type GroupOpts = { regenerate?: boolean; cacheOnly?: boolean; signal: AbortSignal };
 type GroupStub = (graph: Graph, opts: GroupOpts) => Promise<Graph | undefined>;
 const noGroup: GroupStub = async () => undefined;
+const NO_PROJECT = {
+  pickModels: async () => ({ models: [] }), roles: async () => ({}), savedRoles: () => ({}), styles: () => ({}),
+};
 const paperOf = (graph: Graph): Graph => ({ ...graph, root: { ...graph.root, name: "Paper of " + graph.meta.mode } });
 
 function setup(opts: {
@@ -55,6 +58,7 @@ function setup(opts: {
       return statics.length > 1 ? statics.shift()! : statics[0];
     },
     trace: async () => { calls.push("trace"); return opts.traceResult ?? ok(graph("traced")); },
+    scan: async () => ok([]),
   };
   const host: Host = {
     isTrusted: () => opts.trusted ?? true,
@@ -62,6 +66,10 @@ function setup(opts: {
     post: (m) => posts.push(m),
     openConfigFile: async () => { opened++; },
     group: async (graph, o) => { groupCalls.push(o); return (opts.group ?? noGroup)(graph, o); },
+    pickModels: async () => ({ models: [] }),
+    roles: async () => ({}),
+    savedRoles: () => ({}),
+    styles: () => ({}),
   };
   const controller = new DiagramController(client, host, root);
   const notices = () => posts.filter((p) => p.type === "notice");
@@ -189,9 +197,9 @@ test("a slow older request cannot overwrite a newer graph", async () => {
       if (k === 1) { await gate; return ok(named("Old")); }
       return ok(named(k === 0 ? "Base" : "New"));
     },
-    trace: async () => ok(graph("traced")),
+    trace: async () => ok(graph("traced")), scan: async () => ok([]),
   }, { isTrusted: () => true, pickClass: async () => undefined, post: (m) => s.posts.push(m),
-       openConfigFile: async () => undefined, group: noGroup }, s.root);
+       openConfigFile: async () => undefined, group: noGroup, ...NO_PROJECT }, s.root);
   saveEntry(s.root, s.file, { className: "Net", ctorKwargs: {}, inputs: {} });
   await controller.open(s.file);
   const slow = controller.onFileSaved(s.file);
@@ -219,9 +227,9 @@ test("a failed open does not take over the file the saved diagram belongs to", a
   const failing = new DiagramController({
     listClasses: async () => fail("syntax"),
     analyzeStatic: async () => fail("syntax"),
-    trace: async () => fail("syntax"),
+    trace: async () => fail("syntax"), scan: async () => fail("syntax"),
   }, { isTrusted: () => true, pickClass: async () => undefined, post: () => undefined,
-       openConfigFile: async () => undefined, group: noGroup }, s.root);
+       openConfigFile: async () => undefined, group: noGroup, ...NO_PROJECT }, s.root);
   await failing.open(other);
   expect(failing.openFile).toBeUndefined();
 });

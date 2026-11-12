@@ -47,3 +47,9 @@ export const ACTION_LABELS = {
   selectPython: "Set Python path",
   chooseModel: "Choose model",
 } as const;
+
+export const PROJECT_SCANNING = "Code Diagrammer: analysing the project…";
+export const PROJECT_INFO = "Showing structure only. Open a model on its own to trace tensor shapes.";
+export const NOT_IN_PROJECT = "This file is not part of any main model.";
+export const MODELS_FAILED = (list: string) => "Could not analyse: " + list + ".";
+export const STYLE_PROBLEMS = (list: string) => 'Ignored in "styles": ' + list + ".";

@@ -222,6 +222,10 @@ async function open(context: vscode.ExtensionContext): Promise<void> {
     post: (message) => panel.post(message),
     openConfigFile,
     group: async (graph, opts) => (await groupGraph(graph, llm, readLines, opts))?.paper,
+    pickModels: async () => ({ models: [] }),
+    roles: async () => ({}),
+    savedRoles: () => ({}),
+    styles: () => ({}),
   };
   controller?.dispose();
   controller = new DiagramController(client, host, workspaceRoot);
