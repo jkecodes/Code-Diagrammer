@@ -2,7 +2,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { expect, test } from "vitest";
-import { loadEntry, saveEntry, templateFor } from "../src/entryConfig";
+import { loadEntry, loadStyles, saveEntry, templateFor } from "../src/entryConfig";
 
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), "cd-entry-"));
 
@@ -40,4 +40,29 @@ test("template gives every required forward parameter a default shape", () => {
     forwardParams: [{ name: "x", hasDefault: false }, { name: "flag", hasDefault: true }],
   });
   expect(t).toEqual({ className: "Net", ctorKwargs: {}, inputs: { x: [1, 3, 224, 224] } });
+});
+
+test("loadStyles reads the styles object; missing file or wrong type → {}", () => {
+  const root = tmp();
+  expect(loadStyles(root)).toEqual({});
+  fs.mkdirSync(path.join(root, ".vscode"));
+  const file = path.join(root, ".vscode", "code-diagrammer.json");
+  fs.writeFileSync(file, JSON.stringify({ entries: {}, styles: { A: { role: "encoder" }, B: "red", C: null } }));
+  expect(loadStyles(root)).toEqual({ A: { role: "encoder" } });
+  fs.writeFileSync(file, JSON.stringify({ styles: { A: { color: "red" } } }));
+  expect(loadStyles(root)).toEqual({ A: { color: "red" } });
+  fs.writeFileSync(file, JSON.stringify({ entries: {}, styles: [1] }));
+  expect(loadStyles(root)).toEqual({});
+});
+
+test("saveEntry keeps the styles (and any other top-level key) already in the file", () => {
+  const root = tmp();
+  fs.mkdirSync(path.join(root, ".vscode"));
+  const file = path.join(root, ".vscode", "code-diagrammer.json");
+  fs.writeFileSync(file, JSON.stringify({ entries: {}, styles: { A: { role: "encoder" } }, other: 1 }));
+  saveEntry(root, path.join(root, "a.py"), { className: "A", ctorKwargs: {}, inputs: {} });
+  const parsed = JSON.parse(fs.readFileSync(file, "utf8"));
+  expect(parsed.styles).toEqual({ A: { role: "encoder" } });
+  expect(parsed.other).toBe(1);
+  expect(parsed.entries["a.py"].className).toBe("A");
 });

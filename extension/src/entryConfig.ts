@@ -2,6 +2,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import type { ClassInfo, InputSpec } from "./ir";
+import type { StyleOverride } from "./look";
 
 export type EntryConfig = {
   className: string;
@@ -9,7 +10,8 @@ export type EntryConfig = {
   inputs: Record<string, InputSpec>;
 };
 
-type ConfigFile = { entries: Record<string, EntryConfig> };
+/** Keys other than `entries` (e.g. `styles`) belong to the user and are written back unchanged. */
+type ConfigFile = { entries: Record<string, EntryConfig>; [key: string]: unknown };
 
 export function configPath(workspaceRoot: string): string {
   return path.join(workspaceRoot, ".vscode", "code-diagrammer.json");
@@ -22,8 +24,9 @@ function key(workspaceRoot: string, file: string): string {
 function read(workspaceRoot: string): ConfigFile {
   try {
     const parsed = JSON.parse(fs.readFileSync(configPath(workspaceRoot), "utf8"));
-    if (parsed && typeof parsed.entries === "object" && parsed.entries !== null) {
-      return { entries: parsed.entries };
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      const entries = typeof parsed.entries === "object" && parsed.entries !== null ? parsed.entries : {};
+      return { ...parsed, entries };
     }
   } catch {
     // missing or malformed: treated as empty
@@ -42,6 +45,17 @@ export function saveEntry(workspaceRoot: string, file: string, entry: EntryConfi
   config.entries[key(workspaceRoot, file)] = entry;
   fs.mkdirSync(path.dirname(configPath(workspaceRoot)), { recursive: true });
   fs.writeFileSync(configPath(workspaceRoot), JSON.stringify(config, null, 2) + "\n", "utf8");
+}
+
+/** The user's per-class looks ("styles"): class name → role, shape and/or colour. */
+export function loadStyles(workspaceRoot: string): Record<string, StyleOverride> {
+  const styles = read(workspaceRoot).styles;
+  if (!styles || typeof styles !== "object" || Array.isArray(styles)) return {};
+  const out: Record<string, StyleOverride> = {};
+  for (const [name, value] of Object.entries(styles)) {
+    if (value && typeof value === "object" && !Array.isArray(value)) out[name] = value as StyleOverride;
+  }
+  return out;
 }
 
 /** A starting point the user edits: every required forward parameter gets an image-like shape. */
