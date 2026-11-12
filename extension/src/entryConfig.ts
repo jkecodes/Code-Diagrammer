@@ -21,17 +21,33 @@ function key(workspaceRoot: string, file: string): string {
   return path.relative(workspaceRoot, file).split(path.sep).join("/");
 }
 
-function read(workspaceRoot: string): ConfigFile {
+/** `undefined`: the file exists but is not a JSON object (the user is probably editing it). */
+function parse(workspaceRoot: string): ConfigFile | undefined {
+  let text: string;
   try {
-    const parsed = JSON.parse(fs.readFileSync(configPath(workspaceRoot), "utf8"));
+    text = fs.readFileSync(configPath(workspaceRoot), "utf8");
+  } catch {
+    return { entries: {} }; // no file yet
+  }
+  try {
+    const parsed = JSON.parse(text);
     if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
       const entries = typeof parsed.entries === "object" && parsed.entries !== null ? parsed.entries : {};
       return { ...parsed, entries };
     }
   } catch {
-    // missing or malformed: treated as empty
+    // not JSON
   }
-  return { entries: {} };
+  return undefined;
+}
+
+function read(workspaceRoot: string): ConfigFile {
+  return parse(workspaceRoot) ?? { entries: {} };
+}
+
+/** True when the config file exists but cannot be used. It must then not be written. */
+export function configMalformed(workspaceRoot: string): boolean {
+  return parse(workspaceRoot) === undefined;
 }
 
 export function loadEntry(workspaceRoot: string, file: string): EntryConfig | undefined {
@@ -40,11 +56,17 @@ export function loadEntry(workspaceRoot: string, file: string): EntryConfig | un
   return { className: entry.className, ctorKwargs: entry.ctorKwargs ?? {}, inputs: entry.inputs ?? {} };
 }
 
-export function saveEntry(workspaceRoot: string, file: string, entry: EntryConfig): void {
-  const config = read(workspaceRoot);
+/**
+ * Returns false, writing nothing, when the existing file is malformed: rewriting it would delete
+ * the entries and styles the user has in it.
+ */
+export function saveEntry(workspaceRoot: string, file: string, entry: EntryConfig): boolean {
+  const config = parse(workspaceRoot);
+  if (!config) return false;
   config.entries[key(workspaceRoot, file)] = entry;
   fs.mkdirSync(path.dirname(configPath(workspaceRoot)), { recursive: true });
   fs.writeFileSync(configPath(workspaceRoot), JSON.stringify(config, null, 2) + "\n", "utf8");
+  return true;
 }
 
 /** The user's per-class looks ("styles"): class name → role, shape and/or colour. */

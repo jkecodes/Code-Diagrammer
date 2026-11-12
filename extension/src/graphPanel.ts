@@ -58,6 +58,11 @@ export class GraphPanel {
     });
   }
 
+  /** Brings the diagram's tab to the front without taking the keyboard focus. */
+  reveal(): void {
+    this.panel.reveal(undefined, true);
+  }
+
   post(message: HostMessage): void {
     if (message.type === "graph") {
       this.lastGraph = message;

@@ -66,3 +66,5 @@ export const TEST_PASSED = (model: string, count: number, seconds: string, reply
   model + " works: it answered in " + seconds + " s in the requested format (" + reply + "). "
   + (count === 1 ? "1 model offered" : count + " models offered") + " by this IDE.";
 export const TEST_RUNNING = "Code Diagrammer: testing the language model…";
+export const CONFIG_MALFORMED =
+  ".vscode/code-diagrammer.json is not valid JSON, so it is not used and will not be changed. Fix it and try again.";

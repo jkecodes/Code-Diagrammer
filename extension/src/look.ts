@@ -62,8 +62,15 @@ export function overrideLook(o: StyleOverride, base: Look | undefined): { look?:
   let look = base;
   if (typeof o.role === "string" && o.role.trim()) {
     const name = o.role.trim().slice(0, MAX_ROLE_NAME).trim();
-    look = tableLook(name.toLowerCase())
-      ?? { role: name, shape: base?.shape ?? "rect", color: base?.color ?? "none" };
+    const fixed = tableLook(name.toLowerCase());
+    if (fixed) {
+      look = fixed;
+    } else if (o.shape !== undefined || o.color !== undefined) {
+      // a role of the user's own: it needs a shape or a colour to mean anything
+      look = { role: name, shape: base?.shape ?? "rect", color: base?.color ?? "none" };
+    } else {
+      problems.push(`unknown role ${JSON.stringify(o.role)}`); // most likely a typo
+    }
   }
   const plain: Look = { shape: "rect", color: "none" };
   if (o.shape !== undefined) {

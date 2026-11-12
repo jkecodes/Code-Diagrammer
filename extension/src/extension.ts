@@ -287,7 +287,20 @@ async function open(context: vscode.ExtensionContext, file?: string): Promise<vo
     void vscode.window.showInformationMessage(M.NOT_A_PYTHON_FILE);
     return;
   }
-  await attach(context, target.root).open(target.file);
+  await controllerFor(context, target.root).open(target.file);
+}
+
+/**
+ * The controller of the diagram that is open, when it belongs to `root`; otherwise a fresh one.
+ * Keeping it means a request that fails or is cancelled leaves the diagram that is shown alive
+ * (its Locate, Stages and refresh-on-save keep working).
+ */
+function controllerFor(context: vscode.ExtensionContext, root: string): DiagramController {
+  if (controller && workspaceRoot === root && GraphPanel.active) {
+    GraphPanel.active.reveal();
+    return controller;
+  }
+  return attach(context, root);
 }
 
 /** The diagram of `className` on its own (where its shapes can be traced). */
@@ -310,9 +323,8 @@ async function openProject(context: vscode.ExtensionContext): Promise<void> {
     void vscode.window.showInformationMessage(M.NO_WORKSPACE);
     return;
   }
-  // keep the diagram that is open (and its controller) until the project is ready: cancelling
-  // must leave the panel as it was
-  const current = controller && workspaceRoot === root && GraphPanel.active ? controller : attach(context, root);
+  // the diagram that is open stays until the project is ready: cancelling leaves the panel as it was
+  const current = controllerFor(context, root);
   await vscode.window.withProgress(
     { location: vscode.ProgressLocation.Notification, cancellable: true, title: M.PROJECT_SCANNING },
     async (_progress, token) => {

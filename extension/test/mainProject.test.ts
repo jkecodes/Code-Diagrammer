@@ -2,6 +2,7 @@
 // The webview with project graphs: locate, the File | Project switch, Stages per model.
 import { beforeAll, expect, test } from "vitest";
 import type { Graph } from "../src/ir";
+import { applyGrouping } from "../src/llm/grouping";
 import { buildProjectGraph } from "../src/project/projectGraph";
 import type { HostMessage, WebviewMessage } from "../src/protocol";
 import { BODY_HTML } from "../src/webview/shell";
@@ -162,4 +163,50 @@ test("going back to a file graph refits and restores the file toolbar", async ()
   sent.length = 0;
   el("viewPaper").click();
   expect(sent).toEqual([{ type: "requestPaper", regenerate: false }]);
+});
+
+// ---- after the review: stages inside a project, and a rebuilt graph ------------------------
+
+// a model with four top-level blocks, so that it can have stages
+const wide = (name: string): Graph => {
+  const graph = g([n("a"), n("b"), n("c"), n("d", { source: { file: FILE, startLine: 20, endLine: 30 } })],
+    [e("$in", "a"), e("a", "b"), e("b", "c"), e("c", "d"), e("d", "$out")]);
+  graph.root.name = name;
+  graph.meta.entry = { file: `/ws/${name}.py`, className: name };
+  return graph;
+};
+const wideProject = () => buildProjectGraph("stages", [
+  { name: "A", file: "/ws/a.py", line: 1, summary: "", graph: wide("A") },
+  { name: "B", file: "/ws/b.py", line: 1, summary: "", graph: wide("B") },
+]);
+const staged = () => applyGrouping(wideProject(), [
+  { name: "Front", description: "", nodeIds: ["m1/a", "m1/b"] },
+  { name: "Back", description: "", nodeIds: ["m1/c", "m1/d"] },
+], "m1/root");
+
+test("stages of a project model are shown opened, not as a row of collapsed models", async () => {
+  post({ type: "graph", graph: wideProject() });
+  await until(() => ids().includes("m1/root") && !ids().includes("outer"));
+  fire(node("m1/root"), "click");
+  sent.length = 0;
+  el("viewPaper").click();
+  expect(sent).toEqual([{ type: "requestPaper", regenerate: false, scopeId: "m1/root" }]);
+  post({ type: "paper", graph: staged() });
+  await until(() => ids().includes("m1/root/concept:0") && ids().includes("m1/root/concept:1"));
+  expect(ids()).not.toContain("m1/a"); // the stages themselves start collapsed
+  await until(() => !/^-24 -24 /.test(svg().getAttribute("viewBox") ?? "")); // on the model, not the whole project
+  el("viewCode").click();
+  await until(() => !ids().includes("m1/root/concept:0"));
+});
+
+test("a rebuilt graph of the same project keeps the located highlight and the view", async () => {
+  post({ type: "locate", ids: ["m0/d", "m1/d"] });
+  await until(() => ids().includes("m0/d") && node("m0/d").classList.contains("cursor"));
+  const before = svg().getAttribute("viewBox");
+  post({ type: "graph", graph: wideProject() }); // what a save sends: the graph, and no locate
+  await settle();
+  expect(ids()).toContain("m0/d");
+  expect(node("m0/d").classList.contains("cursor")).toBe(true);
+  expect(node("m1/d").classList.contains("cursor")).toBe(true);
+  expect(svg().getAttribute("viewBox")).toBe(before);
 });

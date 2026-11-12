@@ -132,3 +132,9 @@ test("applyStyles does not mutate its input", () => {
   applyStyles(graph, { Enc: ENCODER }, { Blk: { shape: "hexagon" } });
   expect(JSON.stringify(graph)).toBe(before);
 });
+
+test("override: an unknown role alone is reported; with a shape or colour it is the user's own role", () => {
+  expect(overrideLook({ role: "encodr" }, undefined)).toEqual({ look: undefined, problems: ['unknown role "encodr"'] });
+  expect(overrideLook({ role: "vocoder", shape: "hexagon" }, undefined))
+    .toEqual({ look: { role: "vocoder", shape: "hexagon", color: "none" }, problems: [] });
+});

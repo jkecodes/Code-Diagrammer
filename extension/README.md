@@ -151,3 +151,9 @@ Automated tests use a scripted model. These need a real IDE:
     Select Entry Model (which rewrite the same file).
 19. Shapes and colours are readable in a light theme, a dark theme and a high-contrast theme.
 20. **Stages** in the project architecture groups only the model you selected.
+21. Save a model file while the project architecture is open: the diagram refreshes without any dialog,
+    the view does not move, and Stages (if shown) stay.
+22. In the project architecture, with a Python file that has no model as the last editor, click **File**:
+    a notice appears and the project diagram still reacts to **Locate** and **Stages**.
+23. Put a trailing comma into `.vscode/code-diagrammer.json`: a notice says it is not valid JSON, and the
+    file is left exactly as you wrote it.

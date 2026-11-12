@@ -208,8 +208,14 @@ function setGraph(next: Graph): void {
   const wasPaper = mode === "paper";
   codeGraph = next;
   paperGraph = null; // a grouping belongs to exactly one graph; the host re-sends it if it still applies
-  paperScope = undefined;
-  located = []; // the host locates again after a new graph
+  if (first) {
+    paperScope = undefined;
+    located = [];
+  } else {
+    // the same diagram again (a save): keep pointing at the blocks that are still there
+    const ids = allIds(next.root);
+    located = located.filter((id) => ids.has(id));
+  }
   setBusy(null); // so is a grouping in flight: the host has dropped it
 
   viewFile.setAttribute("aria-pressed", String(!project));
@@ -230,9 +236,35 @@ function setGraph(next: Graph): void {
   show("code", first || wasPaper);
 }
 
+function conceptParents(node: Graph["root"], trail: string[], into: Set<string>): void {
+  for (const child of node.children) {
+    if (child.kind === "concept") trail.forEach((id) => into.add(id));
+    conceptParents(child, [...trail, child.id], into);
+  }
+}
+
 function setPaper(next: Graph): void {
   paperGraph = next;
-  if (wantPaper) show("paper", true);
+  if (!isProject(next)) {
+    if (wantPaper) show("paper", true);
+    return;
+  }
+  // The stages are inside one model block: open the way down to them (and whatever was open in the
+  // Blocks view), and look at that model instead of the whole project.
+  const open = new Set<string>();
+  conceptParents(next.root, [], open);
+  const ids = allIds(next.root);
+  for (const id of states.code.expanded) if (ids.has(id)) open.add(id);
+  for (const id of open) states.paper.expanded.add(id);
+  if (!wantPaper) return;
+  const model = [...open].find((id) => next.root.children.some((c) => c.id === id));
+  show("paper", false);
+  void render(false).then(() => {
+    const box = laid && model ? findBox(laid.root, model) : null;
+    if (!box || mode !== "paper") return;
+    viewBox = focusBox(box, { width: svg.clientWidth || 0, height: svg.clientHeight || 0 }, 24);
+    setViewBox();
+  });
 }
 
 // ---- messages from the extension ----

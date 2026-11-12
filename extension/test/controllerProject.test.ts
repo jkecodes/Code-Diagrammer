@@ -27,6 +27,7 @@ type Opts = {
   note?: string; roles?: RoleMap; saved?: RoleMap; styles?: Record<string, StyleOverride>;
   pick?: (classes: ScannedClass[], signal: AbortSignal) => Promise<{ models: ProjectModel[]; note?: string }>;
   onStatic?: (entry: string) => void;
+  group?: (graph: Graph) => Graph | undefined; classes1?: Result<ClassInfo[]>;
 };
 
 function setup(opts: Opts = {}) {
@@ -51,9 +52,11 @@ function setup(opts: Opts = {}) {
   const calls: string[] = [];
   const posts: HostMessage[] = [];
   const groupScopes: (string | undefined)[] = [];
+  const groupOpts: { cacheOnly?: boolean; scope?: string }[] = [];
+  const counts = { pick: 0, roles: 0 };
   const client = {
     listClasses: async (): Promise<Result<ClassInfo[]>> =>
-      ok([{ name: "Gen", line: 1, topLevel: true, initParams: [], forwardParams: [] }]),
+      opts.classes1 ?? ok([{ name: "Gen", line: 1, topLevel: true, initParams: [], forwardParams: [] }]),
     scan: async () => { calls.push("scan"); return opts.scan ?? ok(scanned); },
     analyzeStatic: async (req: { entry: string }): Promise<Result<Graph>> => {
       calls.push("static:" + req.entry);
@@ -71,12 +74,16 @@ function setup(opts: Opts = {}) {
     pickClass: async () => undefined,
     post: (m) => posts.push(m),
     openConfigFile: async () => {},
-    group: async (_graph, o) => { groupScopes.push(o.scope); return undefined; },
-    pickModels: opts.pick ?? (async (classes) => ({
-      models: classes.map((c) => ({ name: c.name, file: c.file, line: c.line, summary: "About " + c.name })),
-      note: opts.note,
-    })),
-    roles: async () => opts.roles ?? {},
+    group: async (graph, o) => { groupScopes.push(o.scope); groupOpts.push(o); return opts.group?.(graph); },
+    pickModels: async (classes, signal) => {
+      counts.pick++;
+      if (opts.pick) return opts.pick(classes, signal);
+      return {
+        models: classes.map((c) => ({ name: c.name, file: c.file, line: c.line, summary: "About " + c.name })),
+        note: opts.note,
+      };
+    },
+    roles: async () => { counts.roles++; return opts.roles ?? {}; },
     savedRoles: () => opts.saved ?? {},
     styles: () => opts.styles ?? {},
   };
@@ -85,7 +92,8 @@ function setup(opts: Opts = {}) {
   const graphs = () => posts.flatMap((p) => (p.type === "graph" ? [p.graph] : []));
   const notices = () => posts.flatMap((p) => (p.type === "notice" ? [p] : []));
   const locates = () => posts.flatMap((p) => (p.type === "locate" ? [p.ids] : []));
-  return { root, at, calls, posts, controller, live, graphs, notices, locates, groupScopes };
+  const papers = () => posts.flatMap((p) => (p.type === "paper" ? [p.graph] : []));
+  return { root, at, calls, posts, controller, live, graphs, notices, locates, groupScopes, groupOpts, counts, papers };
 }
 const find = (node: Node, id: string): Node | undefined =>
   node.id === id ? node : node.children.map((c) => find(c, id)).find(Boolean);
@@ -124,7 +132,9 @@ test("one model fails: the graph still has both blocks, the failed one is a leaf
   await s.controller.openProject({ file: s.at("train.py"), line: 1 }, s.live.signal);
   const graph = s.graphs()[0];
   expect(graph.root.children.map((c) => [c.name, c.children.length])).toEqual([["Gen", 2], ["Disc", 0]]);
-  expect(s.notices()).toEqual([{ type: "notice", level: "warn", text: M.MODELS_FAILED("Disc (syntax)") }]);
+  expect(s.notices()).toEqual([{
+    type: "notice", level: "warn", text: M.MODELS_FAILED("Disc (syntax)") + " " + M.NOT_IN_PROJECT,
+  }]);
 });
 
 test("every model fails: no graph is posted, the analysis-failed notice is", async () => {
@@ -253,9 +263,99 @@ test("project mode: saving a file a model shows rebuilds the project; another fi
   await s.controller.onFileSaved(s.at("train.py"));
   expect(s.calls).toEqual([]);
   await s.controller.onFileSaved(s.at("blocks.py"));
-  expect(s.calls).toEqual(["scan", "static:Gen", "static:Disc"]);
+  expect(s.calls).toEqual(["static:Gen", "static:Disc"]); // the model list is the one from the open
   expect(s.graphs()).toHaveLength(1);
-  expect(s.locates()).toEqual([["m0/blk", "m1/blk"]]); // still located on the last active file
+  expect(s.graphs()[0].root.children.map((c) => c.id)).toEqual(["m0/root", "m1/root"]);
+});
+
+test("a save never asks the language model again and never moves the view", async () => {
+  const s = setup({ roles: { Gen: ENCODER } });
+  await s.controller.openProject({ file: s.at("blocks.py"), line: 2 }, s.live.signal);
+  expect(s.counts).toEqual({ pick: 1, roles: 1 });
+  s.posts.length = 0;
+  await s.controller.onFileSaved(s.at("blocks.py"));
+  expect(s.counts).toEqual({ pick: 1, roles: 1 });
+  expect(s.locates()).toEqual([]);
+  expect(find(s.graphs()[0].root, "m0/root")?.look).toEqual(ENCODER); // the roles of the open are kept
+  expect(s.notices().map((x) => x.text)).toEqual([M.PROJECT_INFO]);
+});
+
+test("after a save the stages of the model grouped last are offered again from the cache", async () => {
+  const s = setup({ group: (graph) => ({ ...graph, root: { ...graph.root, name: "staged" } }) });
+  await s.controller.openProject(undefined, s.live.signal);
+  await s.controller.requestPaper(false, "m1/root");
+  s.posts.length = 0;
+  s.groupOpts.length = 0;
+  await s.controller.onFileSaved(s.at("blocks.py"));
+  expect(s.groupOpts).toEqual([expect.objectContaining({ cacheOnly: true, scope: "m1/root" })]);
+  expect(s.papers().map((p) => p.root.name)).toEqual(["staged"]);
+});
+
+test("a save before any stages were made offers nothing", async () => {
+  const s = setup({ group: (graph) => graph });
+  await s.controller.openProject(undefined, s.live.signal);
+  await s.controller.onFileSaved(s.at("blocks.py"));
+  expect(s.groupOpts).toEqual([]);
+});
+
+test("without a language model the note, the style problems and not-in-project are all shown", async () => {
+  const s = setup({ note: "No language model.", styles: { Gen: { shape: "star" } } });
+  await s.controller.openProject({ file: s.at("train.py"), line: 1 }, s.live.signal);
+  expect(s.notices()).toEqual([{
+    type: "notice", level: "warn",
+    text: ["No language model.", M.STYLE_PROBLEMS('Gen: unknown shape "star"'), M.NOT_IN_PROJECT].join(" "),
+  }]);
+});
+
+test("file view: style problems are reported on open and after a trace", async () => {
+  const s = setup({ styles: { Blk: { role: "encodr" } } });
+  saveEntry(s.root, s.at("gen.py"), { className: "Gen", ctorKwargs: {}, inputs: { x: [1, 2] } });
+  await s.controller.open(s.at("gen.py"));
+  const problem = M.STYLE_PROBLEMS('Blk: unknown role "encodr"');
+  expect(s.notices()).toEqual([
+    { type: "notice", level: "warn", text: problem + " " + M.NO_SHAPES, action: "trace" },
+  ]);
+  s.posts.length = 0;
+  await s.controller.traceShapes();
+  expect(s.notices()).toEqual([{ type: "notice", level: "warn", text: problem }]);
+});
+
+test("a config file that is not valid JSON: open and trace stop with a notice and write nothing", async () => {
+  const s = setup();
+  fs.mkdirSync(path.join(s.root, ".vscode"));
+  const config = path.join(s.root, ".vscode", "code-diagrammer.json");
+  fs.writeFileSync(config, '{ "styles": { "A": {}, } }');
+  await s.controller.open(s.at("gen.py"));
+  await s.controller.selectEntry();
+  await s.controller.traceShapes();
+  expect(s.posts).toEqual([{ type: "notice", level: "warn", text: M.CONFIG_MALFORMED, action: "editInputs" }]);
+  expect(s.calls).toEqual([]);
+  expect(fs.readFileSync(config, "utf8")).toBe('{ "styles": { "A": {}, } }');
+});
+
+test("a config file that is not valid JSON: the project is still drawn, with a warning", async () => {
+  const s = setup();
+  fs.mkdirSync(path.join(s.root, ".vscode"));
+  fs.writeFileSync(path.join(s.root, ".vscode", "code-diagrammer.json"), "{ nope");
+  await s.controller.openProject({ file: s.at("blocks.py"), line: 2 }, s.live.signal);
+  expect(s.graphs()).toHaveLength(1);
+  expect(s.notices()).toEqual([{ type: "notice", level: "warn", text: M.CONFIG_MALFORMED }]);
+});
+
+test("a failed open leaves the project diagram fully working", async () => {
+  const s = setup({ classes1: fail("syntax") });
+  await s.controller.openProject({ file: s.at("blocks.py"), line: 2 }, s.live.signal);
+  s.posts.length = 0;
+  await s.controller.open(s.at("utils.py")); // no saved entry → lists classes → fails
+  expect(s.controller.isProject).toBe(true);
+  s.posts.length = 0;
+  s.calls.length = 0;
+  s.controller.locate({ file: s.at("blocks.py"), line: 2 });
+  expect(s.locates()).toEqual([["m0/blk", "m1/blk"]]);
+  await s.controller.requestPaper(false, "m1/root");
+  expect(s.groupScopes.at(-1)).toBe("m1/root");
+  await s.controller.onFileSaved(s.at("blocks.py"));
+  expect(s.calls).toEqual(["static:Gen", "static:Disc"]);
 });
 
 test("project mode: traceShapes and selectEntry do nothing", async () => {

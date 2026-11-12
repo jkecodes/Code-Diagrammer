@@ -2,7 +2,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { expect, test } from "vitest";
-import { loadEntry, loadStyles, saveEntry, templateFor } from "../src/entryConfig";
+import { configMalformed, loadEntry, loadStyles, saveEntry, templateFor } from "../src/entryConfig";
 
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), "cd-entry-"));
 
@@ -65,4 +65,21 @@ test("saveEntry keeps the styles (and any other top-level key) already in the fi
   expect(parsed.styles).toEqual({ A: { role: "encoder" } });
   expect(parsed.other).toBe(1);
   expect(parsed.entries["a.py"].className).toBe("A");
+});
+
+test("a config file that is not valid JSON is never overwritten", () => {
+  const root = tmp();
+  expect(configMalformed(root)).toBe(false); // no file yet
+  fs.mkdirSync(path.join(root, ".vscode"));
+  const file = path.join(root, ".vscode", "code-diagrammer.json");
+  const text = '{ "entries": {}, "styles": { "A": { "role": "encoder" }, } }'; // trailing comma
+  fs.writeFileSync(file, text);
+  expect(configMalformed(root)).toBe(true);
+  expect(saveEntry(root, path.join(root, "a.py"), { className: "A", ctorKwargs: {}, inputs: {} })).toBe(false);
+  expect(fs.readFileSync(file, "utf8")).toBe(text);
+  fs.writeFileSync(file, "[1, 2]"); // valid JSON, but not a config object
+  expect(configMalformed(root)).toBe(true);
+  fs.writeFileSync(file, JSON.stringify({ entries: {} }));
+  expect(configMalformed(root)).toBe(false);
+  expect(saveEntry(root, path.join(root, "a.py"), { className: "A", ctorKwargs: {}, inputs: {} })).toBe(true);
 });

@@ -1,7 +1,7 @@
 // Open / trace / on-save logic. No `vscode` import: the editor is reached through `Host`.
 import * as path from "node:path";
 import type { AnalyzerClient, AnalyzerError } from "./analyzerClient";
-import { type EntryConfig, loadEntry, saveEntry, templateFor } from "./entryConfig";
+import { configMalformed, type EntryConfig, loadEntry, saveEntry, templateFor } from "./entryConfig";
 import type { ClassInfo, Graph, ScannedClass } from "./ir";
 import type { ProjectModel } from "./llm/projectModels";
 import { LlmError } from "./llm/provider";
@@ -54,7 +54,9 @@ export class DiagramController {
   private disposed = false;
   private paperAbort: AbortController | undefined;
   private project = false; // the graph shows every main model of the workspace, not one file's model
-  private lastActive: Active | undefined;
+  /** What the last project open decided: a save redraws from it without asking the model again. */
+  private plan: { models: ProjectModel[]; roles: RoleMap; note?: string } | undefined;
+  private stageScope: string | undefined; // project mode: the model whose stages were shown last
 
   constructor(
     private readonly client: AnalyzerClientLike,
@@ -100,7 +102,10 @@ export class DiagramController {
     const current = () => !this.disposed && this.paperAbort === abort && this._graph === graph;
     try {
       const paper = await this.host.group(graph, { regenerate, signal: abort.signal, scope });
-      if (current() && paper) this.host.post({ type: "paper", graph: paper });
+      if (current() && paper) {
+        this.stageScope = scope;
+        this.host.post({ type: "paper", graph: paper });
+      }
     } catch (e) {
       if (!current()) return;
       const kind = e instanceof LlmError ? e.kind : "provider";
@@ -130,10 +135,12 @@ export class DiagramController {
 
   /** Posts the paper view when a grouping of exactly this graph is already cached. */
   private async offerCachedPaper(graph: Graph): Promise<void> {
-    if (this.project) return; // which model to group is the user's choice there
+    // in a project, which model to group is the user's choice: only the one they chose comes back
+    const scope = this.project ? this.stageScope : undefined;
+    if (this.project && scope === undefined) return;
     let paper: Graph | undefined;
     try {
-      paper = await this.host.group(graph, { cacheOnly: true, signal: new AbortController().signal });
+      paper = await this.host.group(graph, { cacheOnly: true, signal: new AbortController().signal, scope });
     } catch {
       return; // the cache is a convenience
     }
@@ -149,7 +156,15 @@ export class DiagramController {
     return this.disposed || token !== this.seq;
   }
 
+  /** The config file cannot be read: say so instead of working from (and then saving) an empty one. */
+  private configBroken(): boolean {
+    if (!configMalformed(this.workspaceRoot)) return false;
+    this.host.post({ type: "notice", level: "warn", text: M.CONFIG_MALFORMED, action: "editInputs" });
+    return true;
+  }
+
   async open(file: string): Promise<void> {
+    if (this.configBroken()) return;
     const token = this.begin();
     let entry = loadEntry(this.workspaceRoot, file);
     if (!entry) {
@@ -169,7 +184,7 @@ export class DiagramController {
 
   async selectEntry(): Promise<void> {
     const file = this.file;
-    if (!file) return;
+    if (!file || this.configBroken()) return;
     const token = this.begin();
     const classes = await this.classes(file, token);
     if (!classes) return;
@@ -190,6 +205,7 @@ export class DiagramController {
       this.host.post({ type: "notice", level: "warn", text: M.UNTRUSTED });
       return;
     }
+    if (this.configBroken()) return;
     let entry = loadEntry(this.workspaceRoot, file);
     if (!entry) return;
     const token = this.begin();
@@ -215,7 +231,7 @@ export class DiagramController {
       this.fail(result.error);
       return;
     }
-    const graph = this.styled(result.value);
+    const { graph, problems } = this.styled(result.value);
     this.cancelPaper();
     this._graph = graph;
     this.host.post({ type: "graph", graph });
@@ -223,6 +239,8 @@ export class DiagramController {
     if (reason) {
       this._lastLog = result.log ?? reason;
       this.host.post({ type: "notice", level: "warn", text: M.TRACE_FAILED(reason), action: "copyLog" });
+    } else if (problems.length > 0) {
+      this.host.post({ type: "notice", level: "warn", text: M.STYLE_PROBLEMS(problems.join("; ")) });
     } else {
       this.host.post({ type: "clearNotice" });
     }
@@ -232,7 +250,7 @@ export class DiagramController {
   /** Reacts to the open file and to any file that defines a block shown in the diagram. */
   async onFileSaved(file: string): Promise<void> {
     if (this.project) {
-      if (this.showsFile(file)) await this.openProject(this.lastActive, new AbortController().signal);
+      if (this.plan && this.showsFile(file)) await this.redrawProject(this.plan);
       return;
     }
     if (!this.file) return;
@@ -272,19 +290,98 @@ export class DiagramController {
       this.fail(result.error);
       return;
     }
-    const graph = this.styled(result.value);
+    const { graph, problems } = this.styled(result.value);
     this.cancelPaper();
     this.file = file; // only a file that analyzed successfully becomes the open diagram
     this.project = false;
+    this.plan = undefined;
+    this.stageScope = undefined;
     this._graph = graph;
     this.host.post({ type: "graph", graph });
-    this.host.post({ type: "notice", level: "info", text: notice, action: "trace" });
+    if (problems.length > 0) {
+      const text = M.STYLE_PROBLEMS(problems.join("; ")) + " " + notice;
+      this.host.post({ type: "notice", level: "warn", text, action: "trace" });
+    } else {
+      this.host.post({ type: "notice", level: "info", text: notice, action: "trace" });
+    }
     await this.offerCachedPaper(graph);
   }
 
   /** A single model's graph with the looks the workspace already knows; never asks the model. */
-  private styled(graph: Graph): Graph {
-    return applyStyles(graph, this.host.savedRoles(), this.host.styles()).graph;
+  private styled(graph: Graph): { graph: Graph; problems: string[] } {
+    return applyStyles(graph, this.host.savedRoles(), this.host.styles());
+  }
+
+  /** Static analysis of each model, in order. `undefined` when the request died on the way. */
+  private async analyzeModels(
+    models: ProjectModel[], dead: () => boolean,
+  ): Promise<{ parts: ProjectPart[]; failed: string[]; firstError?: AnalyzerError } | undefined> {
+    const parts: ProjectPart[] = [];
+    const failed: string[] = [];
+    let firstError: AnalyzerError | undefined;
+    for (const model of models) {
+      const result = await this.client.analyzeStatic({
+        file: model.file, entry: model.name, workspaceRoot: this.workspaceRoot,
+      });
+      if (dead()) return undefined;
+      parts.push({ ...model, graph: result.ok ? result.value : null });
+      if (!result.ok) {
+        failed.push(`${model.name} (${result.error.kind})`);
+        firstError ??= result.error;
+      }
+    }
+    return { parts, failed, firstError };
+  }
+
+  /**
+   * Makes the project graph the current one and reports everything worth knowing in one notice.
+   * `active` is given when the view should also be pointed at the user's file (an open, not a save).
+   */
+  private showProject(
+    parts: ProjectPart[], failed: string[], plan: { models: ProjectModel[]; roles: RoleMap; note?: string },
+    relocate: boolean, active: Active | undefined,
+  ): Graph {
+    const { graph, problems } = applyStyles(
+      buildProjectGraph(path.basename(this.workspaceRoot), parts), plan.roles, this.host.styles(),
+    );
+    this.cancelPaper();
+    this.file = undefined;
+    this.project = true;
+    this.plan = plan;
+    this._graph = graph;
+    this.host.post({ type: "graph", graph });
+
+    const targets = relocate && active ? locateTargets(graph, active.file, active.line) : [];
+    const outside = relocate && active !== undefined && targets.length === 0;
+    const warnings: string[] = [];
+    if (failed.length > 0) warnings.push(M.MODELS_FAILED(failed.join(", ")));
+    if (plan.note) warnings.push(plan.note);
+    if (configMalformed(this.workspaceRoot)) warnings.push(M.CONFIG_MALFORMED);
+    if (problems.length > 0) warnings.push(M.STYLE_PROBLEMS(problems.join("; ")));
+    if (warnings.length > 0) {
+      if (outside) warnings.push(M.NOT_IN_PROJECT);
+      this.host.post({ type: "notice", level: "warn", text: warnings.join(" ") });
+    } else {
+      this.host.post({ type: "notice", level: "info", text: outside ? M.NOT_IN_PROJECT : M.PROJECT_INFO });
+    }
+    if (relocate) this.host.post({ type: "locate", ids: targets });
+    return graph;
+  }
+
+  /**
+   * After a save: the same models with the same roles, analysed again. The language model is not
+   * asked (no dialogs while the user is typing) and the view is not moved.
+   */
+  private async redrawProject(plan: { models: ProjectModel[]; roles: RoleMap; note?: string }): Promise<void> {
+    const token = this.begin();
+    const analysed = await this.analyzeModels(plan.models, () => this.stale(token));
+    if (!analysed) return;
+    if (analysed.firstError && analysed.failed.length === plan.models.length) {
+      this.fail(analysed.firstError);
+      return;
+    }
+    const graph = this.showProject(analysed.parts, analysed.failed, plan, false, undefined);
+    await this.offerCachedPaper(graph);
   }
 
   /**
@@ -316,22 +413,10 @@ export class DiagramController {
       return;
     }
 
-    const parts: ProjectPart[] = [];
-    const failed: string[] = [];
-    let firstError: AnalyzerError | undefined;
-    for (const model of models) {
-      const result = await this.client.analyzeStatic({
-        file: model.file, entry: model.name, workspaceRoot: this.workspaceRoot,
-      });
-      if (dead()) return;
-      parts.push({ ...model, graph: result.ok ? result.value : null });
-      if (!result.ok) {
-        failed.push(`${model.name} (${result.error.kind})`);
-        firstError ??= result.error;
-      }
-    }
-    if (firstError && failed.length === models.length) {
-      this.fail(firstError);
+    const analysed = await this.analyzeModels(models, dead);
+    if (!analysed) return;
+    if (analysed.firstError && analysed.failed.length === models.length) {
+      this.fail(analysed.firstError);
       return;
     }
 
@@ -344,36 +429,14 @@ export class DiagramController {
     }
     if (dead()) return;
 
-    const { graph, problems } = applyStyles(
-      buildProjectGraph(path.basename(this.workspaceRoot), parts), roles, this.host.styles(),
-    );
-    this.cancelPaper();
-    this.file = undefined;
-    this.project = true;
-    this.lastActive = active;
-    this._graph = graph;
-    this.host.post({ type: "graph", graph });
-
-    const targets = active ? locateTargets(graph, active.file, active.line) : [];
-    if (failed.length > 0) {
-      this.host.post({ type: "notice", level: "warn", text: M.MODELS_FAILED(failed.join(", ")) });
-    } else if (picked.note) {
-      this.host.post({ type: "notice", level: "warn", text: picked.note });
-    } else if (problems.length > 0) {
-      this.host.post({ type: "notice", level: "warn", text: M.STYLE_PROBLEMS(problems.join("; ")) });
-    } else if (active && targets.length === 0) {
-      this.host.post({ type: "notice", level: "info", text: M.NOT_IN_PROJECT });
-    } else {
-      this.host.post({ type: "notice", level: "info", text: M.PROJECT_INFO });
-    }
-    this.host.post({ type: "locate", ids: targets });
+    this.stageScope = undefined; // a fresh open starts in the Blocks view
+    this.showProject(analysed.parts, analysed.failed, { models, roles, note: picked.note }, true, active);
   }
 
   /** Points the diagram at the blocks the user's file defines. */
   locate(active: Active | undefined): void {
     const graph = this._graph;
     if (!graph || this.disposed) return;
-    if (active) this.lastActive = active;
     const ids = active ? locateTargets(graph, active.file, active.line) : [];
     this.host.post({ type: "locate", ids });
     if (this.project && active && ids.length === 0) {
