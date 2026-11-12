@@ -1,10 +1,11 @@
 // Paper-style grouping: a language model proposes named groups of top-level blocks; this file
 // validates them and builds the "paper view". Edges and shapes always come from the IR.
-import { type Edge, type Graph, IN, type Node, OUT } from "../ir";
+import { type Edge, type Graph, IN, type Look, type Node, OUT } from "../ir";
+import { COLORS, MODEL_ROLES, resolveLook, SHAPES } from "../look";
 import { LlmError } from "./provider";
 import { extractJson, type LlmService } from "./service";
 
-export type Group = { name: string; description: string; nodeIds: string[] };
+export type Group = { name: string; description: string; nodeIds: string[]; look?: Look };
 export type Rejection = { name: string; reason: string };
 export type ReadLines = (file: string, start: number, end: number) => string[];
 
@@ -13,6 +14,7 @@ const MAX_EXCERPT_LINES = 15;
 const MAX_NODES_WITH_EXCERPTS = 150;
 const MIN_NODES = 4;
 const KIND = "grouping";
+const TOO_SMALL = "Too small to group";
 
 // ---- describing the graph to the model ------------------------------------------------------
 
@@ -28,9 +30,22 @@ function unique<T>(values: T[]): T[] {
  * The block whose children are grouped: the graph's root, or — when the root has too few blocks —
  * the wrapper inside it (the child with the most children, repeatedly), e.g. Net → _forward.
  */
-function scopeOf(graph: Graph): { node: Node; path: number[] } {
+function scopeOf(graph: Graph, scopeId?: string): { node: Node; path: number[] } {
   let node = graph.root;
-  const path: number[] = [];
+  let path: number[] = [];
+  if (scopeId !== undefined) {
+    const search = (current: Node, trail: number[]): { node: Node; path: number[] } | undefined => {
+      if (current.id === scopeId) return { node: current, path: trail };
+      for (const [i, child] of current.children.entries()) {
+        const hit = search(child, [...trail, i]);
+        if (hit) return hit;
+      }
+      return undefined;
+    };
+    const start = search(graph.root, []);
+    if (!start) throw new LlmError("invalid-output", TOO_SMALL);
+    ({ node, path } = start);
+  }
   while (node.children.length < MIN_NODES) {
     let best = -1;
     node.children.forEach((c, i) => {
@@ -49,8 +64,8 @@ function replaceAt(node: Node, path: number[], inner: Node): Node {
   return { ...node, children };
 }
 
-export function describeGraph(graph: Graph, readLines: ReadLines): string {
-  const { node: root, path } = scopeOf(graph);
+export function describeGraph(graph: Graph, readLines: ReadLines, scopeId?: string): string {
+  const { node: root, path } = scopeOf(graph, scopeId);
   const withExcerpts = root.children.length <= MAX_NODES_WITH_EXCERPTS;
   const blocks = root.children.map((node) => {
     const entering = root.edges.filter((e) => e.to === node.id);
@@ -82,10 +97,13 @@ export function groupingPrompt(description: string, errors?: Rejection[]): strin
     "Rules: use only the listed ids; a block belongs to at most one group; a group has at least two blocks;",
     "the blocks of a group must be directly connected to each other; do not put everything in one group;",
     "leave a block ungrouped when it is a stage on its own.",
+    `A group may have a "role" that decides how it is drawn: ${MODEL_ROLES.join(", ")};`,
+    `or a short role of your own with a "shape" (${SHAPES.join(", ")}) and a "color" (${COLORS.join(", ")}).`,
     "",
     description,
     "",
-    'Answer with JSON only: {"groups": [{"name": "...", "description": "one sentence", "nodeIds": ["id", "id"]}]}',
+    'Answer with JSON only: {"groups": [{"name": "...", "description": "one sentence", "nodeIds": ["id", "id"], "role": "encoder"}]}',
+    '("role", "shape" and "color" are optional.)',
   ];
   if (errors !== undefined) {
     lines.push("", "Your previous answer could not be used:");
@@ -141,12 +159,15 @@ function cyclic(edges: Edge[], owner: Map<string, string>): boolean {
  * Keeps the groups that are safe to draw. Throws LlmError("invalid-output") when nothing usable
  * is left. Only the graph's top-level blocks can be grouped.
  */
-export function validateGroups(raw: unknown, graph: Graph): { groups: Group[]; rejected: Rejection[] } {
+export function validateGroups(
+  raw: unknown, graph: Graph, scopeId?: string,
+): { groups: Group[]; rejected: Rejection[] } {
   const list = (raw as { groups?: unknown } | null)?.groups;
   if (!raw || typeof raw !== "object" || !Array.isArray(list)) {
     throw new LlmError("invalid-output", "The language model did not return a list of groups");
   }
-  const root = scopeOf(graph).node;
+  const root = scopeOf(graph, scopeId).node;
+  const invented = new Map<string, Look>();
   const top = new Set(root.children.map((c) => c.id));
   const taken = new Set<string>();
   const owner = new Map<string, string>();
@@ -185,11 +206,18 @@ export function validateGroups(raw: unknown, graph: Graph): { groups: Group[]; r
     }
     const count = (names.get(name) ?? 0) + 1;
     names.set(name, count);
-    groups.push({
+    const group: Group = {
       name: count === 1 ? name : `${name} ${count}`,
       description: typeof item.description === "string" ? item.description.trim() : "",
       nodeIds,
-    });
+    };
+    const look = resolveLook({
+      role: item.role as string,
+      shape: typeof item.shape === "string" ? item.shape : undefined,
+      color: typeof item.color === "string" ? item.color : undefined,
+    }, invented);
+    if (look) group.look = look;
+    groups.push(group);
   }
   if (groups.length === 0) {
     throw new LlmError("invalid-output", "The language model proposed no usable group");
@@ -214,8 +242,8 @@ function pushUnique(into: Edge[], edge: Edge): void {
 }
 
 /** Pure: wraps each group's blocks in a "concept" node. `groups` must come from validateGroups. */
-export function applyGrouping(graph: Graph, groups: Group[]): Graph {
-  const { node: root, path } = scopeOf(graph);
+export function applyGrouping(graph: Graph, groups: Group[], scopeId?: string): Graph {
+  const { node: root, path } = scopeOf(graph, scopeId);
   const owner = new Map<string, number>();
   groups.forEach((group, index) => group.nodeIds.forEach((id) => owner.set(id, index)));
   const conceptId = (index: number) => `${root.id}/concept:${index}`;
@@ -235,6 +263,7 @@ export function applyGrouping(graph: Graph, groups: Group[]): Graph {
     return {
       id: conceptId(index), name: group.name, kind: "concept", type: "concept",
       description: group.description,
+      ...(group.look ? { look: group.look } : {}),
       source: members[0]?.source ?? null,
       params: sum(members.map((m) => m.params)),
       trainableParams: sum(members.map((m) => m.trainableParams)),
@@ -274,9 +303,9 @@ export function applyGrouping(graph: Graph, groups: Group[]): Graph {
 
 type Checked = { groups: Group[]; rejected: Rejection[] };
 
-function check(text: string, graph: Graph): Checked | undefined {
+function check(text: string, graph: Graph, scopeId?: string): Checked | undefined {
   try {
-    return validateGroups(extractJson(text), graph);
+    return validateGroups(extractJson(text), graph, scopeId);
   } catch (e) {
     if (e instanceof LlmError && e.kind === "invalid-output") return undefined;
     throw e;
@@ -289,27 +318,36 @@ function check(text: string, graph: Graph): Checked | undefined {
  */
 export async function groupGraph(
   graph: Graph, llm: LlmService, readLines: ReadLines,
-  opts: { regenerate?: boolean; signal?: AbortSignal; cacheOnly?: boolean } = {},
+  opts: { regenerate?: boolean; signal?: AbortSignal; cacheOnly?: boolean; scope?: string } = {},
 ): Promise<{ paper: Graph; groups: Group[] } | undefined> {
-  if (scopeOf(graph).node.children.length < MIN_NODES) {
-    if (opts.cacheOnly) return undefined;
-    throw new LlmError("invalid-output", "Too small to group");
+  const scopeId = opts.scope;
+  let tooSmall: boolean;
+  try {
+    tooSmall = scopeOf(graph, scopeId).node.children.length < MIN_NODES;
+  } catch {
+    tooSmall = true; // no block has the scope's id
   }
-  const description = describeGraph(graph, readLines);
+  if (tooSmall) {
+    if (opts.cacheOnly) return undefined;
+    throw new LlmError("invalid-output", TOO_SMALL);
+  }
+  const description = describeGraph(graph, readLines, scopeId);
   const get = async (prompt: string): Promise<string | undefined> => {
     if (opts.cacheOnly) return (await llm.cached(prompt, KIND))?.text;
     return (await llm.ask(prompt, { kind: KIND, regenerate: opts.regenerate, signal: opts.signal })).text;
   };
-  const done = (checked: Checked) => ({ paper: applyGrouping(graph, checked.groups), groups: checked.groups });
+  const done = (checked: Checked) => ({
+    paper: applyGrouping(graph, checked.groups, scopeId), groups: checked.groups,
+  });
 
   const firstText = await get(groupingPrompt(description));
   if (firstText === undefined) return undefined;
-  const first = check(firstText, graph);
+  const first = check(firstText, graph, scopeId);
   if (first && !(first.rejected.length > 0 && first.groups.length < 2)) return done(first);
 
   // one retry, telling the model what was wrong
   const secondText = await get(groupingPrompt(description, first?.rejected ?? []));
-  const second = secondText === undefined ? undefined : check(secondText, graph);
+  const second = secondText === undefined ? undefined : check(secondText, graph, scopeId);
   if (second && (!first || second.groups.length >= first.groups.length)) return done(second);
   if (first) return done(first);
   if (opts.cacheOnly) return undefined;

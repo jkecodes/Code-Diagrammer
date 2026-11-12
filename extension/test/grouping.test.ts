@@ -320,6 +320,54 @@ test("a wrapper with fewer than four children is still too small", async () => {
   expect(err instanceof LlmError && err.kind).toBe("invalid-output");
 });
 
+// ---- roles on groups, and grouping inside a chosen block --------------------------------
+
+test("a group may carry a role: the concept node gets its look", () => {
+  const checked = validateGroups(raw(
+    { name: "Stem", description: "d", nodeIds: ["a", "b"], role: "encoder", shape: "circle" },
+    { name: "Tail", description: "d", nodeIds: ["d", "e"], role: "vocoder", shape: "hexagon", color: "teal" },
+  ), chain());
+  const paper = applyGrouping(chain(), checked.groups);
+  expect(paper.root.children[0].look).toEqual({ role: "encoder", shape: "trapezoid-narrow", color: "blue" });
+  expect(paper.root.children[2].look).toEqual({ role: "vocoder", shape: "hexagon", color: "teal" });
+  expect(groupingPrompt("x")).toContain('"role"');
+});
+
+test("a group without a role has no look", () => {
+  const checked = validateGroups(raw(grp("Stem", ["a", "b"])), chain());
+  expect(applyGrouping(chain(), checked.groups).root.children[0].look).toBeUndefined();
+});
+
+const twoModels = (): Graph => {
+  const model = (prefix: string) => {
+    const inner = chain().root;
+    const id = (x: string) => (x.startsWith("$") ? x : prefix + x);
+    return n(prefix + "root", {
+      children: inner.children.map((c) => ({ ...c, id: prefix + c.id })),
+      edges: inner.edges.map((x) => ({ ...x, from: id(x.from), to: id(x.to) })),
+    });
+  };
+  return g([model("m0/"), model("m1/")], []);
+};
+const SCOPED = JSON.stringify(raw(grp("Stem", ["m1/a", "m1/b"]), grp("Tail", ["m1/d", "m1/e"])));
+
+test("scope: only the named block's children are grouped, ids are relative to it", async () => {
+  const s = service([SCOPED]);
+  const out = await groupGraph(twoModels(), s.llm, noSource, { scope: "m1/root" });
+  expect(ids(out!.paper.root)).toEqual(["m0/root", "m1/root"]);
+  expect(ids(out!.paper.root.children[0])).toEqual(ids(twoModels().root.children[0]));
+  expect(ids(out!.paper.root.children[1])).toEqual(["m1/root/concept:0", "m1/c", "m1/root/concept:1"]);
+  expect(s.provider.prompts[0]).toContain("id: m1/a");
+  expect(s.provider.prompts[0]).not.toContain("id: m0/a");
+});
+
+test("scope: an unknown id is refused without a request", async () => {
+  const s = service([SCOPED]);
+  const err = await groupGraph(twoModels(), s.llm, noSource, { scope: "m9/root" }).catch((x) => x);
+  expect(err instanceof LlmError && err.kind).toBe("invalid-output");
+  expect(s.provider.prompts).toHaveLength(0);
+});
+
 // ---- acceptance on the recorded FAST-SDE graph ------------------------------------------
 
 test("FAST-SDE: the recorded grouping is valid, gives 5–8 blocks, keeps the traced boundary shapes", () => {

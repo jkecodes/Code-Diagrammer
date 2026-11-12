@@ -17,6 +17,9 @@ export const ROLE_LOOKS: Record<string, { shape: Shape; color: Color }> = {
   activation: { shape: "circle", color: "gray" },
 };
 
+/** The roles a language model may choose from; activations are decided by rule. */
+export const MODEL_ROLES: readonly string[] = Object.keys(ROLE_LOOKS).filter((r) => r !== "activation");
+
 export const MAX_ROLE_NAME = 20;
 
 /** A role as the language model gave it: nothing in it is trusted. */
