@@ -1,8 +1,11 @@
 // Webview entry point: holds view state and wires messages, layout and rendering together.
 import type { Graph } from "../ir";
+import { ancestorsOf } from "../locate";
+import { modelIdOf } from "../project/projectGraph";
 import type { HostMessage, Notice, NoticeAction, WebviewMessage } from "../protocol";
 import { nodesAtLine, visibleTargets } from "./cursor";
-import { type Laid, layoutView } from "./layout";
+import { type Box, type Laid, layoutView } from "./layout";
+import { focusBox } from "./viewport";
 import { applyCursorHighlight, renderDetails, renderDiagram, renderNotice } from "./render";
 import { allIds, buildView, formatParams, type ViewState, type VNode } from "./view";
 
@@ -30,6 +33,8 @@ let view: VNode | null = null;
 let laid: Laid | null = null;
 let selectedId: string | null = null;
 let cursor: { file: string; line: number } | null = null;
+let located: string[] = []; // the blocks the host last pointed at (the active file's blocks)
+let paperScope: string | undefined; // project graphs: the model the stages were last asked for
 const states: Record<Mode, ViewState> = {
   code: { expanded: new Set(), showShapeOps: false },
   paper: { expanded: new Set(), showShapeOps: false },
@@ -38,6 +43,11 @@ let state: ViewState = states.code;
 const viewCode = document.getElementById("viewCode") as HTMLButtonElement;
 const viewPaper = document.getElementById("viewPaper") as HTMLButtonElement;
 const busy = document.getElementById("busy") as HTMLElement;
+const viewFile = document.getElementById("viewFile") as HTMLButtonElement;
+const viewProject = document.getElementById("viewProject") as HTMLButtonElement;
+const locateButton = document.getElementById("locate") as HTMLButtonElement;
+const traceButton = document.getElementById("trace") as HTMLButtonElement;
+const isProject = (g: Graph | null): boolean => g?.meta.project !== undefined;
 let viewBox = { x: 0, y: 0, width: 800, height: 400 };
 let renderToken = 0;
 
@@ -76,11 +86,41 @@ function showDetails(): void {
 }
 
 function highlightCursor(): void {
-  if (!graph || !view || !cursor) {
+  if (!graph || !view || (!cursor && located.length === 0)) {
     applyCursorHighlight(svg, []);
     return;
   }
-  applyCursorHighlight(svg, visibleTargets(graph, view, nodesAtLine(graph, cursor.file, cursor.line)));
+  // the block under the editor cursor; without one, the blocks the host located
+  const underCursor = cursor ? nodesAtLine(graph, cursor.file, cursor.line) : [];
+  applyCursorHighlight(svg, visibleTargets(graph, view, underCursor.length > 0 ? underCursor : located));
+}
+
+function findBox(box: Box, id: string): Box | null {
+  if (box.id === id) return box;
+  for (const child of box.children) {
+    const hit = findBox(child, id);
+    if (hit) return hit;
+  }
+  return null;
+}
+
+/** Opens the diagram down to these blocks and zooms to the first; with none, shows everything. */
+async function locate(ids: string[]): Promise<void> {
+  located = ids;
+  if (!graph) return;
+  if (ids.length === 0) {
+    await render(true);
+    return;
+  }
+  for (const id of ancestorsOf(graph, ids)) state.expanded.add(id);
+  await render(false);
+  const box = laid ? findBox(laid.root, ids[0]) : null;
+  if (!box) {
+    fit();
+    return;
+  }
+  viewBox = focusBox(box, { width: svg.clientWidth || 0, height: svg.clientHeight || 0 });
+  setViewBox();
 }
 
 async function render(refit: boolean): Promise<void> {
@@ -130,10 +170,23 @@ function show(next: Mode, refit: boolean): void {
   void render(refit);
 }
 
+/** A project graph is grouped one model at a time: the selected block's, else the located one, else the first. */
+function stagesScope(): string | undefined {
+  if (!graph || !codeGraph || !isProject(codeGraph)) return undefined;
+  return (selectedId ? modelIdOf(graph, selectedId) : undefined)
+    ?? (located.length > 0 ? modelIdOf(graph, located[0]) : undefined)
+    ?? codeGraph.root.children[0]?.id;
+}
+
 function choosePaper(regenerate: boolean): void {
   wantPaper = true;
-  if (paperGraph && !regenerate) show("paper", true);
-  else send({ type: "requestPaper", regenerate });
+  const scopeId = stagesScope();
+  if (paperGraph && !regenerate && scopeId === paperScope) {
+    show("paper", true);
+    return;
+  }
+  paperScope = scopeId;
+  send(scopeId === undefined ? { type: "requestPaper", regenerate } : { type: "requestPaper", regenerate, scopeId });
 }
 
 function setBusy(text: string | null): void {
@@ -148,17 +201,29 @@ function chooseCode(): void {
 }
 
 function setGraph(next: Graph): void {
-  const first = codeGraph === null || codeGraph.meta.entry.className !== next.meta.entry.className
+  const project = isProject(next);
+  const first = codeGraph === null || isProject(codeGraph) !== project
+    || codeGraph.meta.entry.className !== next.meta.entry.className
     || codeGraph.meta.entry.file !== next.meta.entry.file;
   const wasPaper = mode === "paper";
   codeGraph = next;
   paperGraph = null; // a grouping belongs to exactly one graph; the host re-sends it if it still applies
+  paperScope = undefined;
+  located = []; // the host locates again after a new graph
   setBusy(null); // so is a grouping in flight: the host has dropped it
+
+  viewFile.setAttribute("aria-pressed", String(!project));
+  viewProject.setAttribute("aria-pressed", String(project));
+  traceButton.hidden = project; // shapes are traced one model at a time
+  locateButton.hidden = !project;
 
   title.replaceChildren(next.root.name);
   const meta = document.createElement("span");
   meta.className = "meta";
-  const parts = [formatParams(next.root.params, next.root.trainableParams)];
+  const count = next.meta.project?.models.length ?? 0;
+  const parts = project
+    ? [count === 1 ? "1 model" : count + " models"]
+    : [formatParams(next.root.params, next.root.trainableParams)];
   if (next.meta.mode === "traced") parts.push("shapes traced on " + next.meta.device);
   meta.textContent = parts.filter(Boolean).join(" · ");
   title.appendChild(meta);
@@ -182,6 +247,8 @@ window.addEventListener("message", (event: MessageEvent<HostMessage>) => {
   else if (message.type === "toggleView") {
     if (mode === "paper") chooseCode();
     else choosePaper(false);
+  } else if (message.type === "locate") {
+    void locate(message.ids);
   } else if (message.type === "cursor") {
     cursor = { file: message.file, line: message.line };
     highlightCursor();
@@ -202,7 +269,10 @@ showShapeOps.addEventListener("change", () => {
 viewCode.addEventListener("click", chooseCode);
 viewPaper.addEventListener("click", () => choosePaper(false));
 document.getElementById("regroup")!.addEventListener("click", () => choosePaper(true));
-document.getElementById("trace")!.addEventListener("click", () => send({ type: "action", action: "trace" }));
+traceButton.addEventListener("click", () => send({ type: "action", action: "trace" }));
+viewFile.addEventListener("click", () => send({ type: "switchView", view: "file" }));
+viewProject.addEventListener("click", () => send({ type: "switchView", view: "project" }));
+locateButton.addEventListener("click", () => send({ type: "locate" }));
 document.getElementById("fit")!.addEventListener("click", fit);
 
 // ---- pan (drag) and zoom (ctrl + wheel) ----
@@ -285,6 +355,17 @@ svg.addEventListener("contextmenu", (event) => {
   ask.disabled = true;
   ask.title = "Coming in a later version";
   menu.append(open, ask);
+  const model = codeGraph?.meta.project?.models.find((m) => m.id === id);
+  if (model) {
+    const single = document.createElement("button");
+    single.textContent = "Open as single model";
+    single.title = "Open this model's own diagram, where tensor shapes can be traced";
+    single.addEventListener("click", () => {
+      hideMenu();
+      send({ type: "openModel", file: model.file, className: model.name });
+    });
+    menu.append(single);
+  }
   menu.style.left = event.clientX + "px";
   menu.style.top = event.clientY + "px";
   menu.hidden = false;

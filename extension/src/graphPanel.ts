@@ -1,6 +1,7 @@
 // Hosts the diagram in a Webview panel inside the editor. No browser, no server.
 import * as vscode from "vscode";
 import type { HostMessage, WebviewMessage } from "./protocol";
+import { BODY_HTML } from "./webview/shell";
 
 function nonce(): string {
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
@@ -60,7 +61,8 @@ export class GraphPanel {
   post(message: HostMessage): void {
     if (message.type === "graph") {
       this.lastGraph = message;
-      this.panel.title = "Architecture: " + message.graph.meta.entry.className;
+      const { meta } = message.graph;
+      this.panel.title = "Architecture: " + (meta.project ? "project" : meta.entry.className);
     } else if (message.type === "notice" || message.type === "clearNotice") {
       this.lastNotice = message;
     }
@@ -81,25 +83,7 @@ export class GraphPanel {
 <link rel="stylesheet" href="${style}">
 <title>Architecture</title>
 </head>
-<body>
-<div id="toolbar">
-  <span id="title"></span>
-  <span class="segmented" role="group" aria-label="View">
-    <button id="viewCode" class="secondary" aria-pressed="true" title="The model as it is written in the code">Code</button>
-    <button id="viewPaper" class="secondary" aria-pressed="false" title="Blocks grouped into named stages by the language model">Paper</button>
-  </span>
-  <button id="regroup" class="secondary" title="Ask the language model to group the blocks again" aria-label="Regenerate the paper view">↻</button>
-  <span id="busy" aria-live="polite"></span>
-  <label><input type="checkbox" id="showShapeOps"> Show reshape ops</label>
-  <button id="fit" class="secondary">Fit</button>
-  <button id="trace">Trace Shapes</button>
-</div>
-<div id="notice" class="notice" hidden></div>
-<div id="main">
-  <svg id="diagram" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Model architecture diagram"></svg>
-  <aside id="details"></aside>
-</div>
-<div id="menu" hidden></div>
+<body>${BODY_HTML}
 <script nonce="${n}" src="${script}"></script>
 </body>
 </html>`;

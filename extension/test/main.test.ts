@@ -2,6 +2,7 @@
 // Integration test of the webview entry point: messages in, SVG and messages out.
 import { beforeAll, expect, test } from "vitest";
 import type { HostMessage, WebviewMessage } from "../src/protocol";
+import { BODY_HTML } from "../src/webview/shell";
 import { e, g, n, op } from "./helpers";
 
 const sent: WebviewMessage[] = [];
@@ -35,14 +36,7 @@ const graph = () => {
 };
 
 beforeAll(async () => {
-  document.body.innerHTML = `
-    <div id="toolbar"><span id="title"></span>
-      <button id="viewCode"></button><button id="viewPaper"></button><button id="regroup"></button>
-      <span id="busy"></span>
-      <input type="checkbox" id="showShapeOps"><button id="fit"></button><button id="trace"></button></div>
-    <div id="notice" hidden></div>
-    <div id="main"><svg id="diagram" xmlns="http://www.w3.org/2000/svg"></svg><aside id="details"></aside></div>
-    <div id="menu" hidden></div>`;
+  document.body.innerHTML = BODY_HTML; // the same markup the extension puts into the panel
   (globalThis as any).acquireVsCodeApi = () => ({ postMessage: (m: WebviewMessage) => sent.push(m) });
   await import("../src/webview/main");
 });

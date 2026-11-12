@@ -1,7 +1,9 @@
 // Positions -> SVG, plus the details pane and the notice bar. No layout logic here.
 import { ACTION_LABELS } from "../messages";
 import type { Notice, NoticeAction } from "../protocol";
+import type { Look } from "../ir";
 import type { Box, Laid } from "./layout";
+import type { Rect } from "./viewport";
 import { formatParams, type VNode } from "./view";
 
 const SVG = "http://www.w3.org/2000/svg";
@@ -21,6 +23,35 @@ function el<K extends keyof SVGElementTagNameMap>(
   return node;
 }
 
+/**
+ * The outline of a block, always inside its layout box. A collapsed block with a look gets the
+ * look's shape; an expanded block stays a rectangle, because its children must fit inside.
+ */
+export function shapeElement(look: Look | undefined, kind: VNode["kind"], expanded: boolean, box: Rect): SVGElement {
+  const { x, y, width: w, height: h } = box;
+  const shape = expanded ? "rect" : look?.shape ?? "rect";
+  const polygon = (points: [number, number][]) =>
+    el("polygon", { class: "shape", points: points.map(([px, py]) => `${px},${py}`).join(" ") });
+  if (shape === "trapezoid-narrow") {
+    return polygon([[x, y], [x + w, y + h * 0.2], [x + w, y + h * 0.8], [x, y + h]]);
+  }
+  if (shape === "trapezoid-wide") {
+    return polygon([[x, y + h * 0.2], [x + w, y], [x + w, y + h], [x, y + h * 0.8]]);
+  }
+  if (shape === "hexagon") {
+    const inset = Math.min(14, w / 5);
+    return polygon([
+      [x + inset, y], [x + w - inset, y], [x + w, y + h / 2],
+      [x + w - inset, y + h], [x + inset, y + h], [x, y + h / 2],
+    ]);
+  }
+  if (shape === "circle") {
+    return el("ellipse", { class: "shape", cx: x + w / 2, cy: y + h / 2, rx: w / 2, ry: h / 2 });
+  }
+  const rx = shape === "rounded" ? h / 2 : kind === "op" ? 14 : 6;
+  return el("rect", { class: "shape", x, y, width: w, height: h, rx });
+}
+
 function drawBox(parent: SVGElement, box: Box, selectedId: string | null, handlers: Handlers): void {
   const v = box.v;
   if (v.kind === "terminal") {
@@ -33,11 +64,10 @@ function drawBox(parent: SVGElement, box: Box, selectedId: string | null, handle
   const classes = ["node", "node-" + v.kind];
   if (v.expanded) classes.push("expanded");
   if (v.id === selectedId) classes.push("selected");
+  const look = v.node?.look;
+  if (look && look.color !== "none") classes.push("look-" + look.color);
   const g = el("g", { class: classes.join(" "), "data-id": v.id });
-  g.appendChild(el("rect", {
-    class: "shape", x: box.x, y: box.y, width: box.width, height: box.height,
-    rx: v.kind === "op" ? 14 : 6,
-  }));
+  g.appendChild(shapeElement(look, v.kind, v.expanded, box));
 
   const toggleSpace = v.expandable ? 22 : 0;
   if (v.expanded) {
@@ -159,6 +189,7 @@ export function renderDetails(
   container.appendChild(title);
   container.appendChild(row("Type", node.type));
   container.appendChild(row("Kind", node.kind));
+  if (node.look?.role) container.appendChild(row("Role", node.look.role));
   if (node.description) container.appendChild(row("About", node.description));
   const params = formatParams(node.params, node.trainableParams);
   if (params) container.appendChild(row("Size", params));
