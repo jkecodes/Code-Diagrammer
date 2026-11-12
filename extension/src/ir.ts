@@ -23,8 +23,15 @@ export type Node = {
   repeated: boolean;
   children: Node[];
   edges: Edge[];
-  description?: string; // concept nodes: what the group does
+  description?: string; // concept nodes: what the group does; project model blocks: their summary
+  look?: Look; // how the block is drawn, when it has a role (set in the extension, not by the analyzer)
 };
+
+export type Shape = "rect" | "rounded" | "trapezoid-narrow" | "trapezoid-wide" | "hexagon" | "circle";
+export type Color = "red" | "orange" | "yellow" | "green" | "teal" | "blue" | "purple" | "pink" | "gray" | "none";
+export type Look = { role?: string; shape: Shape; color: Color };
+
+export type ProjectModelRef = { id: string; name: string; file: string; summary: string };
 
 export type InputSpec = number[] | { shape: number[]; dtype?: string } | { value: unknown };
 
@@ -36,6 +43,7 @@ export type Meta = {
   inputs: Record<string, InputSpec> | null;
   device: "meta" | "cpu" | null;
   traceError: string | null;
+  project?: { models: ProjectModelRef[] }; // present on a project graph: one top-level block per model
 };
 
 export type Graph = { version: 1; meta: Meta; root: Node };
