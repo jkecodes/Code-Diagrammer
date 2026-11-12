@@ -54,12 +54,18 @@ function setup(opts: Opts = {}) {
   const groupScopes: (string | undefined)[] = [];
   const groupOpts: { cacheOnly?: boolean; scope?: string }[] = [];
   const counts = { pick: 0, roles: 0 };
+  const signals: (AbortSignal | undefined)[] = [];
   const client = {
     listClasses: async (): Promise<Result<ClassInfo[]>> =>
       opts.classes1 ?? ok([{ name: "Gen", line: 1, topLevel: true, initParams: [], forwardParams: [] }]),
-    scan: async () => { calls.push("scan"); return opts.scan ?? ok(scanned); },
-    analyzeStatic: async (req: { entry: string }): Promise<Result<Graph>> => {
+    scan: async (_root: string, signal?: AbortSignal) => {
+      calls.push("scan");
+      signals.push(signal);
+      return opts.scan ?? ok(scanned);
+    },
+    analyzeStatic: async (req: { entry: string }, signal?: AbortSignal): Promise<Result<Graph>> => {
       calls.push("static:" + req.entry);
+      signals.push(signal);
       opts.onStatic?.(req.entry);
       const kind = opts.failing?.[req.entry];
       return kind ? fail(kind) : ok(modelGraph(req.entry));
@@ -93,7 +99,7 @@ function setup(opts: Opts = {}) {
   const notices = () => posts.flatMap((p) => (p.type === "notice" ? [p] : []));
   const locates = () => posts.flatMap((p) => (p.type === "locate" ? [p.ids] : []));
   const papers = () => posts.flatMap((p) => (p.type === "paper" ? [p.graph] : []));
-  return { root, at, calls, posts, controller, live, graphs, notices, locates, groupScopes, groupOpts, counts, papers };
+  return { root, at, calls, posts, controller, live, graphs, notices, locates, groupScopes, groupOpts, counts, papers, signals };
 }
 const find = (node: Node, id: string): Node | undefined =>
   node.id === id ? node : node.children.map((c) => find(c, id)).find(Boolean);
@@ -142,7 +148,7 @@ test("every model fails: no graph is posted, the analysis-failed notice is", asy
   await s.controller.openProject(undefined, s.live.signal);
   expect(s.graphs()).toEqual([]);
   expect(s.notices()).toEqual([
-    { type: "notice", level: "warn", text: M.ANALYSIS_FAILED("boom"), action: "copyLog" },
+    { type: "notice", level: "warn", text: M.PROJECT_FAILED("boom"), action: "copyLog" },
   ]);
   expect(s.controller.isProject).toBe(false);
 });
@@ -150,7 +156,7 @@ test("every model fails: no graph is posted, the analysis-failed notice is", asy
 test("scan fails: no graph, analysis-failed notice; python-not-found keeps its action", async () => {
   const a = setup({ scan: fail("internal") });
   await a.controller.openProject(undefined, a.live.signal);
-  expect(a.posts).toEqual([{ type: "notice", level: "warn", text: M.ANALYSIS_FAILED("boom"), action: "copyLog" }]);
+  expect(a.posts).toEqual([{ type: "notice", level: "warn", text: M.PROJECT_FAILED("boom"), action: "copyLog" }]);
   const b = setup({ scan: fail("python-not-found") });
   await b.controller.openProject(undefined, b.live.signal);
   expect(b.posts).toEqual([{ type: "notice", level: "error", text: M.PYTHON_NOT_FOUND, action: "selectPython" }]);
@@ -159,7 +165,8 @@ test("scan fails: no graph, analysis-failed notice; python-not-found keeps its a
 test("no candidates: warn NO_PROJECT_MODELS, no graph", async () => {
   const s = setup({ classes: [] });
   await s.controller.openProject(undefined, s.live.signal);
-  expect(s.posts).toEqual([{ type: "notice", level: "warn", text: M.NO_PROJECT_MODELS }]);
+  expect(s.posts).toEqual([{ type: "notice", level: "warn", text: M.NO_MODELS_IN_FOLDER }]);
+  expect(M.NO_MODELS_IN_FOLDER).toBe("No PyTorch models found in this folder.");
 });
 
 test("more than 12 models: only the first 12 are analysed", async () => {
@@ -255,47 +262,99 @@ test("file mode: requestPaper ignores a scope, and a cached paper is offered onl
   expect(s.groupScopes).toEqual([undefined, undefined]);
 });
 
-test("project mode: saving a file a model shows rebuilds the project; another file does not", async () => {
+test("project view: a save analyses nothing; it says once that the diagram is out of date", async () => {
   const s = setup();
   await s.controller.openProject({ file: s.at("blocks.py"), line: 2 }, s.live.signal);
   s.calls.length = 0;
   s.posts.length = 0;
-  await s.controller.onFileSaved(s.at("train.py"));
+  await s.controller.onFileSaved(s.at("blocks.py"));
+  await s.controller.onFileSaved(s.at("gen.py"));
+  await s.controller.onFileSaved(s.at("notes.txt"));
   expect(s.calls).toEqual([]);
-  await s.controller.onFileSaved(s.at("blocks.py"));
-  expect(s.calls).toEqual(["static:Gen", "static:Disc"]); // the model list is the one from the open
-  expect(s.graphs()).toHaveLength(1);
-  expect(s.graphs()[0].root.children.map((c) => c.id)).toEqual(["m0/root", "m1/root"]);
+  expect(s.counts).toEqual({ pick: 1, roles: 1 });
+  expect(s.posts).toEqual([{ type: "notice", level: "info", text: M.PROJECT_STALE }]);
 });
 
-test("a save never asks the language model again and never moves the view", async () => {
-  const s = setup({ roles: { Gen: ENCODER } });
+test("Project again with nothing changed: no analysis, no model request, only a locate", async () => {
+  const s = setup();
   await s.controller.openProject({ file: s.at("blocks.py"), line: 2 }, s.live.signal);
-  expect(s.counts).toEqual({ pick: 1, roles: 1 });
+  s.calls.length = 0;
   s.posts.length = 0;
-  await s.controller.onFileSaved(s.at("blocks.py"));
+  await s.controller.onFileSaved(s.at("notes.txt")); // not a Python file: changes nothing
+  await s.controller.openProject({ file: s.at("blocks.py"), line: 2 }, s.live.signal);
+  expect(s.calls).toEqual([]);
   expect(s.counts).toEqual({ pick: 1, roles: 1 });
-  expect(s.locates()).toEqual([]);
-  expect(find(s.graphs()[0].root, "m0/root")?.look).toEqual(ENCODER); // the roles of the open are kept
-  expect(s.notices().map((x) => x.text)).toEqual([M.PROJECT_INFO]);
+  expect(s.posts).toEqual([{ type: "locate", ids: ["m0/blk", "m1/blk"] }]);
 });
 
-test("after a save the stages of the model grouped last are offered again from the cache", async () => {
-  const s = setup({ group: (graph) => ({ ...graph, root: { ...graph.root, name: "staged" } }) });
-  await s.controller.openProject(undefined, s.live.signal);
-  await s.controller.requestPaper(false, "m1/root");
+test("back from a file diagram with nothing changed: the same project graph is shown again at once", async () => {
+  const s = setup();
+  await s.controller.openProject({ file: s.at("blocks.py"), line: 2 }, s.live.signal);
+  const first = s.graphs()[0];
+  saveEntry(s.root, s.at("gen.py"), { className: "Gen", ctorKwargs: {}, inputs: {} });
+  await s.controller.open(s.at("gen.py"));
+  s.calls.length = 0;
   s.posts.length = 0;
-  s.groupOpts.length = 0;
-  await s.controller.onFileSaved(s.at("blocks.py"));
-  expect(s.groupOpts).toEqual([expect.objectContaining({ cacheOnly: true, scope: "m1/root" })]);
-  expect(s.papers().map((p) => p.root.name)).toEqual(["staged"]);
+  await s.controller.openProject({ file: s.at("blocks.py"), line: 2 }, s.live.signal);
+  expect(s.calls).toEqual([]);
+  expect(s.posts.map((p) => p.type)).toEqual(["graph", "notice", "locate"]);
+  expect(s.graphs()[0]).toBe(first);
+  expect(s.notices()[0].text).toBe(M.PROJECT_INFO);
+  expect(s.controller.isProject).toBe(true);
 });
 
-test("a save before any stages were made offers nothing", async () => {
-  const s = setup({ group: (graph) => graph });
+test("Project after a Python file was saved analyses again", async () => {
+  const s = setup();
+  await s.controller.openProject({ file: s.at("blocks.py"), line: 2 }, s.live.signal);
+  await s.controller.onFileSaved(s.at("anything_new.py"));
+  s.calls.length = 0;
+  s.posts.length = 0;
+  await s.controller.openProject({ file: s.at("blocks.py"), line: 2 }, s.live.signal);
+  expect(s.calls).toEqual(["scan", "static:Gen", "static:Disc"]);
+  expect(s.posts.map((p) => p.type)).toEqual(["graph", "notice", "locate"]);
+  s.calls.length = 0;
+  await s.controller.openProject({ file: s.at("blocks.py"), line: 2 }, s.live.signal); // up to date again
+  expect(s.calls).toEqual([]);
+});
+
+test("a save in the file view, or of the styles file, also makes the next Project analyse again", async () => {
+  const s = setup();
   await s.controller.openProject(undefined, s.live.signal);
-  await s.controller.onFileSaved(s.at("blocks.py"));
-  expect(s.groupOpts).toEqual([]);
+  saveEntry(s.root, s.at("gen.py"), { className: "Gen", ctorKwargs: {}, inputs: {} });
+  await s.controller.open(s.at("gen.py"));
+  await s.controller.onFileSaved(s.at("gen.py"));
+  s.calls.length = 0;
+  await s.controller.openProject(undefined, s.live.signal);
+  expect(s.calls).toEqual(["scan", "static:Gen", "static:Disc"]);
+  await s.controller.onFileSaved(path.join(s.root, ".vscode", "code-diagrammer.json"));
+  s.calls.length = 0;
+  await s.controller.openProject(undefined, s.live.signal);
+  expect(s.calls).toEqual(["scan", "static:Gen", "static:Disc"]);
+});
+
+test("a save while the project is being analysed is not lost", async () => {
+  let saved: Promise<void> | undefined;
+  const s = setup({ onStatic: (entry) => { if (entry === "Gen") saved = s.controller.onFileSaved(s.at("blocks.py")); } });
+  await s.controller.openProject(undefined, s.live.signal);
+  await saved;
+  s.calls.length = 0;
+  await s.controller.openProject(undefined, s.live.signal);
+  expect(s.calls).toEqual(["scan", "static:Gen", "static:Disc"]);
+});
+
+test("a failed analysis keeps the old diagram and still counts as out of date", async () => {
+  const failing: Record<string, "syntax"> = {};
+  const s = setup({ failing });
+  await s.controller.openProject(undefined, s.live.signal);
+  await s.controller.onFileSaved(s.at("gen.py"));
+  failing.Gen = "syntax";
+  failing.Disc = "syntax";
+  await s.controller.openProject(undefined, s.live.signal);
+  delete failing.Gen;
+  delete failing.Disc;
+  s.calls.length = 0;
+  await s.controller.openProject(undefined, s.live.signal);
+  expect(s.calls).toEqual(["scan", "static:Gen", "static:Disc"]);
 });
 
 test("without a language model the note, the style problems and not-in-project are all shown", async () => {
@@ -355,18 +414,36 @@ test("a failed open leaves the project diagram fully working", async () => {
   await s.controller.requestPaper(false, "m1/root");
   expect(s.groupScopes.at(-1)).toBe("m1/root");
   await s.controller.onFileSaved(s.at("blocks.py"));
-  expect(s.calls).toEqual(["static:Gen", "static:Disc"]);
+  expect(s.notices().at(-1)?.text).toBe(M.PROJECT_STALE);
 });
 
-test("project mode: traceShapes and selectEntry do nothing", async () => {
+test("project mode: traceShapes and selectEntry explain that they work on a single model", async () => {
   const s = setup();
   await s.controller.openProject(undefined, s.live.signal);
   s.posts.length = 0;
   s.calls.length = 0;
   await s.controller.traceShapes();
   await s.controller.selectEntry();
-  expect(s.posts).toEqual([]);
+  const notice = { type: "notice", level: "info", text: M.PROJECT_SINGLE_ONLY };
+  expect(s.posts).toEqual([notice, notice]);
   expect(s.calls).toEqual([]);
+});
+
+test("the cancel signal is handed to the scan and to every analysis", async () => {
+  const s = setup();
+  await s.controller.openProject(undefined, s.live.signal);
+  expect(s.signals).toEqual([s.live.signal, s.live.signal, s.live.signal]);
+});
+
+test("isShowingFile: the open single-model diagram's file only", async () => {
+  const s = setup();
+  expect(s.controller.isShowingFile(s.at("gen.py"))).toBe(false);
+  saveEntry(s.root, s.at("gen.py"), { className: "Gen", ctorKwargs: {}, inputs: {} });
+  await s.controller.open(s.at("gen.py"));
+  expect(s.controller.isShowingFile(s.at("gen.py"))).toBe(true);
+  expect(s.controller.isShowingFile(s.at("disc.py"))).toBe(false);
+  await s.controller.openProject(undefined, s.live.signal);
+  expect(s.controller.isShowingFile(s.at("gen.py"))).toBe(false);
 });
 
 test("locate() in project mode: targets, or the not-in-project notice", async () => {

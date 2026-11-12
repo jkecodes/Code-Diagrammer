@@ -183,10 +183,10 @@ button.secondary:hover { background: var(--vscode-button-secondaryHoverBackgroun
   --look-orange: var(--vscode-charts-orange, #d18616);
   --look-yellow: var(--vscode-charts-yellow, #cca700);
   --look-green: var(--vscode-charts-green, #89d185);
-  --look-teal: #2aa198;
+  --look-teal: var(--vscode-terminal-ansiCyan, #2aa198);
   --look-blue: var(--vscode-charts-blue, #3794ff);
   --look-purple: var(--vscode-charts-purple, #b180d7);
-  --look-pink: #d16d9e;
+  --look-pink: var(--vscode-terminal-ansiMagenta, #d16d9e);
   --look-gray: var(--vscode-descriptionForeground, #8b949e);
 }
 .node.look-red { --look: var(--look-red); }
@@ -205,6 +205,7 @@ button.secondary:hover { background: var(--vscode-button-secondaryHoverBackgroun
   fill: color-mix(in srgb, var(--look) 22%, var(--bg));
 }
 .node.expanded[class*="look-"] > .shape { fill: color-mix(in srgb, var(--look) 6%, transparent); }
+.node.expanded[class*="look-"] > .label.header { fill: var(--look); }
 .node[class*="look-"]:hover > .shape { stroke-width: 2.2; }
 .node.selected[class*="look-"] > .shape { stroke: var(--focus); stroke-width: 2.4; }
 .node.cursor[class*="look-"] > .shape {

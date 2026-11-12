@@ -31,7 +31,7 @@ Non-goals in this version: tensor shapes in the project view, edges between main
    - `meta.mode = "static"`, `meta.entry` = the first model's entry, plus `meta.project = { models: [{ id, name, file, summary }] }`. A graph with `meta.project` is a project graph; everything else treats it as an ordinary graph.
 5. A model whose static analysis fails becomes a leaf block (no children) and the failures are listed in one warning notice ("Could not analyse: A (syntax), B (…)"). The view fails as a whole only when scan fails or no model could be analysed.
 
-The project graph is rebuilt when a source file of any of its models is saved (the same rule the File view uses for its own sources), with the same stale-request handling as today.
+The project graph is **not** rebuilt on save (changed on the user's request, 2026-11-12). Saving a Python file or the styles file marks it out of date and shows a notice; **Project** analyses again only when it is out of date, and otherwise shows the diagram it already has.
 
 ## 4. Locating the active file
 

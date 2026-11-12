@@ -1,6 +1,7 @@
 // Hosts the diagram in a Webview panel inside the editor. No browser, no server.
 import * as vscode from "vscode";
 import type { HostMessage, WebviewMessage } from "./protocol";
+import { Replay } from "./replay";
 import { BODY_HTML } from "./webview/shell";
 
 function nonce(): string {
@@ -13,15 +14,13 @@ function nonce(): string {
 export class GraphPanel {
   private static current: GraphPanel | undefined;
 
-  private lastGraph: HostMessage | undefined;
-  private lastNotice: HostMessage | undefined;
+  private readonly replay = new Replay();
   private onMessage: (m: WebviewMessage) => void;
 
   static show(context: vscode.ExtensionContext, onMessage: (m: WebviewMessage) => void): GraphPanel {
     if (GraphPanel.current) {
       GraphPanel.current.onMessage = onMessage;
-      GraphPanel.current.lastGraph = undefined;
-      GraphPanel.current.lastNotice = undefined;
+      GraphPanel.current.replay.reset();
       GraphPanel.current.panel.reveal(vscode.ViewColumn.Beside, true);
       return GraphPanel.current;
     }
@@ -48,8 +47,7 @@ export class GraphPanel {
     panel.webview.onDidReceiveMessage((m: WebviewMessage) => {
       if (m.type === "ready") {
         // the webview (re)loaded: give it back what it should be showing
-        if (this.lastGraph) void panel.webview.postMessage(this.lastGraph);
-        if (this.lastNotice) void panel.webview.postMessage(this.lastNotice);
+        for (const message of this.replay.messages()) void panel.webview.postMessage(message);
       }
       this.onMessage(m);
     });
@@ -64,12 +62,10 @@ export class GraphPanel {
   }
 
   post(message: HostMessage): void {
+    this.replay.remember(message);
     if (message.type === "graph") {
-      this.lastGraph = message;
       const { meta } = message.graph;
       this.panel.title = "Architecture: " + (meta.project ? "project" : meta.entry.className);
-    } else if (message.type === "notice" || message.type === "clearNotice") {
-      this.lastNotice = message;
     }
     void this.panel.webview.postMessage(message);
   }

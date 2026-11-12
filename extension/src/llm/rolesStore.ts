@@ -30,8 +30,14 @@ export function loadRoles(workspaceRoot: string): RoleMap {
   return Object.fromEntries(out);
 }
 
-export function saveRoles(workspaceRoot: string, roles: RoleMap): void {
+/** False when the workspace cannot be written (read-only folder): the roles are then just not kept. */
+export function saveRoles(workspaceRoot: string, roles: RoleMap): boolean {
   const file = rolesPath(workspaceRoot);
-  fs.mkdirSync(path.dirname(file), { recursive: true });
-  fs.writeFileSync(file, JSON.stringify(roles, null, 2) + "\n", "utf8");
+  try {
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, JSON.stringify(roles, null, 2) + "\n", "utf8");
+    return true;
+  } catch {
+    return false;
+  }
 }

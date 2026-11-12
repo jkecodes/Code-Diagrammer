@@ -37,8 +37,14 @@ export function formatParams(n: number | null, trainable: number | null = null):
   return total + " (" + shortCount(trainable) + " trainable)";
 }
 
-function labels(node: Node, isRoot: boolean): { label: string; sublabel: string } {
+function baseName(file: string): string {
+  return file.split(/[\\/]/).pop() ?? file;
+}
+
+function labels(node: Node, isRoot: boolean, files: Map<string, string>): { label: string; sublabel: string } {
   if (node.repeated) return { label: node.type + " x N", sublabel: "" };
+  const file = files.get(node.id); // a main model of a project graph: tell same-named models apart
+  if (file !== undefined) return { label: node.name, sublabel: baseName(file) };
   if (node.kind === "concept") {
     const size = formatParams(node.params, node.trainableParams);
     return { label: node.name, sublabel: node.children.length + " blocks" + (size ? " · " + size : "") };
@@ -88,11 +94,11 @@ function foldShapeOps(node: Node): { children: Node[]; edges: VEdge[] } {
   return { children: node.children.filter((c) => !foldable.has(c.id)), edges };
 }
 
-function build(node: Node, state: ViewState, isRoot: boolean): VNode {
+function build(node: Node, state: ViewState, isRoot: boolean, files: Map<string, string>): VNode {
   const expandable = node.children.length > 0;
   const expanded = expandable && (isRoot || state.expanded.has(node.id));
   const v: VNode = {
-    id: node.id, ...labels(node, isRoot), kind: node.kind, expandable, expanded, node,
+    id: node.id, ...labels(node, isRoot, files), kind: node.kind, expandable, expanded, node,
     children: [], edges: [],
   };
   if (!expanded) return v;
@@ -116,14 +122,15 @@ function build(node: Node, state: ViewState, isRoot: boolean): VNode {
     node: null, children: [], edges: [],
   });
   if (v.edges.some((e) => e.from === inId)) v.children.push(terminal(inId));
-  for (const child of children) v.children.push(build(child, state, false));
+  for (const child of children) v.children.push(build(child, state, false, files));
   if (v.edges.some((e) => e.to === outId)) v.children.push(terminal(outId));
   return v;
 }
 
 /** The root is always expanded. */
 export function buildView(graph: Graph, state: ViewState): VNode {
-  return build(graph.root, state, true);
+  const files = new Map((graph.meta.project?.models ?? []).map((m) => [m.id, m.file]));
+  return build(graph.root, state, true, files);
 }
 
 /** Every node id in the IR, used to drop expanded ids that no longer exist. */

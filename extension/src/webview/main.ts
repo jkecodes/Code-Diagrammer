@@ -9,7 +9,11 @@ import { focusBox } from "./viewport";
 import { applyCursorHighlight, renderDetails, renderDiagram, renderNotice } from "./render";
 import { allIds, buildView, formatParams, type ViewState, type VNode } from "./view";
 
-declare function acquireVsCodeApi(): { postMessage(message: WebviewMessage): void };
+declare function acquireVsCodeApi(): {
+  postMessage(message: WebviewMessage): void;
+  getState?(): unknown; // survives a reload of the webview
+  setState?(state: unknown): void;
+};
 
 const vscode = acquireVsCodeApi();
 const send = (message: WebviewMessage) => vscode.postMessage(message);
@@ -26,7 +30,12 @@ type Mode = "code" | "paper";
 let codeGraph: Graph | null = null;
 let paperGraph: Graph | null = null; // the paper view of codeGraph, when the host has sent one
 let mode: Mode = "code";
-let wantPaper = false; // the user's preference; the paper view is shown whenever one is available
+// the user's preference; the paper view is shown whenever one is available
+let wantPaper = (vscode.getState?.() as { wantPaper?: unknown } | undefined)?.wantPaper === true;
+function setWantPaper(value: boolean): void {
+  wantPaper = value;
+  vscode.setState?.({ wantPaper: value });
+}
 let grouping = false; // the host is working on a paper view (its busy text is shown)
 let graph: Graph | null = null; // the graph that is drawn: codeGraph or paperGraph
 let view: VNode | null = null;
@@ -34,7 +43,8 @@ let laid: Laid | null = null;
 let selectedId: string | null = null;
 let cursor: { file: string; line: number } | null = null;
 let located: string[] = []; // the blocks the host last pointed at (the active file's blocks)
-let paperScope: string | undefined; // project graphs: the model the stages were last asked for
+let paperScope: string | undefined; // project graphs: the model that paperGraph has stages for
+let askedScope: string | undefined; // ... and the model the stages were last asked for
 const states: Record<Mode, ViewState> = {
   code: { expanded: new Set(), showShapeOps: false },
   paper: { expanded: new Set(), showShapeOps: false },
@@ -179,13 +189,13 @@ function stagesScope(): string | undefined {
 }
 
 function choosePaper(regenerate: boolean): void {
-  wantPaper = true;
+  setWantPaper(true);
   const scopeId = stagesScope();
   if (paperGraph && !regenerate && scopeId === paperScope) {
     show("paper", true);
     return;
   }
-  paperScope = scopeId;
+  askedScope = scopeId; // becomes paperScope only when the stages actually arrive
   send(scopeId === undefined ? { type: "requestPaper", regenerate } : { type: "requestPaper", regenerate, scopeId });
 }
 
@@ -195,7 +205,7 @@ function setBusy(text: string | null): void {
 }
 
 function chooseCode(): void {
-  wantPaper = false;
+  setWantPaper(false);
   if (grouping) send({ type: "cancelPaper" });
   if (mode !== "code") show("code", true);
 }
@@ -208,8 +218,9 @@ function setGraph(next: Graph): void {
   const wasPaper = mode === "paper";
   codeGraph = next;
   paperGraph = null; // a grouping belongs to exactly one graph; the host re-sends it if it still applies
+  paperScope = undefined;
   if (first) {
-    paperScope = undefined;
+    askedScope = undefined;
     located = [];
   } else {
     // the same diagram again (a save): keep pointing at the blocks that are still there
@@ -245,6 +256,7 @@ function conceptParents(node: Graph["root"], trail: string[], into: Set<string>)
 
 function setPaper(next: Graph): void {
   paperGraph = next;
+  paperScope = askedScope;
   if (!isProject(next)) {
     if (wantPaper) show("paper", true);
     return;

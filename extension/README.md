@@ -49,6 +49,10 @@ When the view opens it expands down to, highlights and zooms to the blocks that 
 defines (with the cursor inside a class: the blocks of that class). **Locate** does this again for the
 file you are in now. `File` goes back to the diagram of that file's own model.
 
+The project is analysed when you ask for it, not on every save. After you save a Python file the
+diagram says it is out of date; click **Project** to analyse again. If nothing was saved, **Project**
+shows the diagram it already has.
+
 Models are not connected to each other: how a generator feeds a discriminator is written in training
 code, which this view does not read. At most 12 main models are drawn. If one of them cannot be analysed
 it is shown as a block that does not expand, and the others are still drawn.
@@ -151,9 +155,14 @@ Automated tests use a scripted model. These need a real IDE:
     Select Entry Model (which rewrite the same file).
 19. Shapes and colours are readable in a light theme, a dark theme and a high-contrast theme.
 20. **Stages** in the project architecture groups only the model you selected.
-21. Save a model file while the project architecture is open: the diagram refreshes without any dialog,
-    the view does not move, and Stages (if shown) stay.
+21. Save a model file while the project architecture is open: nothing is analysed and the view does not
+    move; a notice says the diagram is out of date. Click **Project**: it is analysed again. Click
+    **Project** once more without saving: it answers at once, with no analysis.
 22. In the project architecture, with a Python file that has no model as the last editor, click **File**:
     a notice appears and the project diagram still reacts to **Locate** and **Stages**.
 23. Put a trailing comma into `.vscode/code-diagrammer.json`: a notice says it is not valid JSON, and the
     file is left exactly as you wrote it.
+24. Reload the diagram's webview (Developer: Reload Webviews) while Stages and a located block are shown:
+    both come back.
+25. Cancel **Test Language Model** and **Open Project Architecture** while they run: both stop at once.
+26. Click **File** when the file's own diagram is already shown after Trace Shapes: the shapes stay.

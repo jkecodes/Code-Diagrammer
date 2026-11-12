@@ -210,3 +210,24 @@ test("a rebuilt graph of the same project keeps the located highlight and the vi
   expect(node("m1/d").classList.contains("cursor")).toBe(true);
   expect(svg().getAttribute("viewBox")).toBe(before);
 });
+
+test("a failed request for another model's stages does not bring back the first model's", async () => {
+  // hold the stages of m1 ...
+  fire(node("m1/root"), "click");
+  el("viewPaper").click();
+  post({ type: "paper", graph: staged() });
+  await until(() => ids().includes("m1/root/concept:0"));
+  el("viewCode").click();
+  await until(() => !ids().includes("m1/root/concept:0"));
+  // ... now ask for m0's, and let that request fail
+  fire(node("m0/root"), "click");
+  sent.length = 0;
+  el("viewPaper").click();
+  expect(sent).toEqual([{ type: "requestPaper", regenerate: false, scopeId: "m0/root" }]);
+  post({ type: "busy", text: null }); // the host gave up; no paper arrives
+  el("viewCode").click();
+  sent.length = 0;
+  el("viewPaper").click(); // asks again instead of showing m1's stages for m0
+  expect(sent).toEqual([{ type: "requestPaper", regenerate: false, scopeId: "m0/root" }]);
+  el("viewCode").click();
+});

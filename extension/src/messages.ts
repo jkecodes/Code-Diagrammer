@@ -68,3 +68,14 @@ export const TEST_PASSED = (model: string, count: number, seconds: string, reply
 export const TEST_RUNNING = "Code Diagrammer: testing the language model…";
 export const CONFIG_MALFORMED =
   ".vscode/code-diagrammer.json is not valid JSON, so it is not used and will not be changed. Fix it and try again.";
+export const TEST_LIST_FAILED = (reason: string) =>
+  "This IDE's list of language models could not be read (" + reason + ").";
+export const TEST_TIMEOUT = (model: string, seconds: number) =>
+  model + " did not answer within " + seconds + " s.";
+export const TEST_CANCELLED = "The language model test was cancelled.";
+export const PROJECT_FAILED = (reason: string) =>
+  "Could not analyse the project (" + reason + "). Showing the last good diagram.";
+export const NO_MODELS_IN_FOLDER = "No PyTorch models found in this folder.";
+export const PROJECT_SINGLE_ONLY =
+  "This works on one model. Right-click a model block and choose Open as single model first.";
+export const PROJECT_STALE = "Files changed since this diagram was made. Click Project to analyse again.";

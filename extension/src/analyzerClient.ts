@@ -3,7 +3,8 @@ import * as path from "node:path";
 import type { ClassInfo, Graph, InputSpec, ScannedClass } from "./ir";
 
 export type AnalyzerError = {
-  kind: "python-not-found" | "timeout" | "bad-output" | "syntax" | "not-found" | "bad-request" | "internal";
+  kind: "python-not-found" | "timeout" | "bad-output" | "syntax" | "not-found" | "bad-request" | "internal"
+    | "cancelled";
   message: string;
   log: string;
 };
@@ -33,20 +34,24 @@ export class AnalyzerClient {
     return this.run({ command: "list", file }, (r) => r.classes as ClassInfo[]);
   }
 
-  async scan(workspaceRoot: string): Promise<Result<ScannedClass[]>> {
-    return this.run({ command: "scan", workspaceRoot }, (r) => r.classes as ScannedClass[]);
+  async scan(workspaceRoot: string, signal?: AbortSignal): Promise<Result<ScannedClass[]>> {
+    return this.run({ command: "scan", workspaceRoot }, (r) => r.classes as ScannedClass[], signal);
   }
 
-  async analyzeStatic(req: StaticRequest): Promise<Result<Graph>> {
-    return this.run({ command: "static", ...req }, (r) => r.graph as Graph);
+  async analyzeStatic(req: StaticRequest, signal?: AbortSignal): Promise<Result<Graph>> {
+    return this.run({ command: "static", ...req }, (r) => r.graph as Graph, signal);
   }
 
   async trace(req: TraceRequest): Promise<Result<Graph>> {
     return this.run({ command: "trace", ...req }, (r) => r.graph as Graph);
   }
 
-  private run<T>(request: object, pick: (response: any) => T): Promise<Result<T>> {
+  private run<T>(request: object, pick: (response: any) => T, signal?: AbortSignal): Promise<Result<T>> {
     const { analyzerDir, timeoutMs, moduleName } = this.opts;
+    const cancelled: Result<T> = {
+      ok: false, error: { kind: "cancelled", message: "The analysis was cancelled", log: "" },
+    };
+    if (signal?.aborted) return Promise.resolve(cancelled);
     const pythonPath = typeof this.opts.pythonPath === "function" ? this.opts.pythonPath() : this.opts.pythonPath;
     return new Promise((resolve) => {
       const existing = process.env.PYTHONPATH;
@@ -67,8 +72,14 @@ export class AnalyzerClient {
         if (settled) return;
         settled = true;
         clearTimeout(timer);
+        signal?.removeEventListener("abort", onAbort);
         resolve(result);
       };
+      const onAbort = () => {
+        child.kill();
+        finish(cancelled);
+      };
+      signal?.addEventListener("abort", onAbort);
       const timer = setTimeout(() => {
         child.kill();
         finish({

@@ -148,9 +148,14 @@ async function chooseModel(): Promise<void> {
 /** Sends one fixed question to the chosen model and tells the user whether it works here. */
 async function testModel(): Promise<void> {
   const result = await vscode.window.withProgress(
-    { location: vscode.ProgressLocation.Notification, title: M.TEST_RUNNING },
-    () => testLanguageModel(provider, preferredModelId()),
+    { location: vscode.ProgressLocation.Notification, cancellable: true, title: M.TEST_RUNNING },
+    (_progress, token) => {
+      const abort = new AbortController();
+      token.onCancellationRequested(() => abort.abort());
+      return testLanguageModel(provider, preferredModelId(), { signal: abort.signal });
+    },
   );
+  if (result.cancelled) return;
   if (result.ok) {
     void vscode.window.showInformationMessage(result.report);
     return;
@@ -237,7 +242,7 @@ function attach(context: vscode.ExtensionContext, root: string): DiagramControll
     else if (message.type === "action") void runAction(message.action);
     else if (message.type === "requestPaper") void controller?.requestPaper(message.regenerate, message.scopeId);
     else if (message.type === "cancelPaper") controller?.cancelPaper();
-    else if (message.type === "switchView") void (message.view === "project" ? openProject(context) : open(context));
+    else if (message.type === "switchView") void (message.view === "project" ? openProject(context) : showFile(context));
     else if (message.type === "locate") controller?.locate(currentPython());
     else if (message.type === "openModel") void openModel(context, root, message.file, message.className);
   };
@@ -301,6 +306,14 @@ function controllerFor(context: vscode.ExtensionContext, root: string): DiagramC
     return controller;
   }
   return attach(context, root);
+}
+
+/** The File button: the diagram of the file being edited. Already showing it? Then nothing to do. */
+async function showFile(context: vscode.ExtensionContext): Promise<void> {
+  const target = currentPython();
+  // opening it again would only throw away its traced shapes
+  if (target && controller?.isShowingFile(target.file) && GraphPanel.active) return;
+  await open(context);
 }
 
 /** The diagram of `className` on its own (where its shapes can be traced). */

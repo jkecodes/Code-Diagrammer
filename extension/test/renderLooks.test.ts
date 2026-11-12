@@ -1,4 +1,6 @@
 // @vitest-environment jsdom
+import * as fs from "node:fs";
+import * as path from "node:path";
 import { beforeEach, expect, test, vi } from "vitest";
 import type { Look } from "../src/ir";
 import type { Box, Laid } from "../src/webview/layout";
@@ -89,4 +91,11 @@ test("details show the role", () => {
   expect(rows).toContain("Roleencoder");
   renderDetails(details, v("plain", look("hexagon", "none")), [], []);
   expect([...details.querySelectorAll(".row .key")].map((r) => r.textContent)).not.toContain("Role");
+});
+
+test("the stylesheet tints an expanded block's title and takes teal and pink from the theme", () => {
+  const css = fs.readFileSync(path.resolve(__dirname, "../src/webview/style.css"), "utf8");
+  expect(css).toMatch(/\.node\.expanded\[class\*="look-"\] > \.label\.header\s*\{[^}]*fill: var\(--look\)/);
+  expect(css).toMatch(/--look-teal: var\(--vscode-terminal-ansiCyan/);
+  expect(css).toMatch(/--look-pink: var\(--vscode-terminal-ansiMagenta/);
 });
