@@ -289,6 +289,37 @@ test("groupGraph refuses graphs with fewer than four top-level nodes", async () 
   expect(await groupGraph(small, s.llm, noSource, { cacheOnly: true })).toBeUndefined();
 });
 
+// ---- a model wrapped in a single block (e.g. VSSBlock → _forward) ----------------------
+
+const wrapped = (): Graph => {
+  const inner = chain().root;
+  const wrapper = n("root/_forward", {
+    name: "_forward", kind: "group", children: inner.children, edges: inner.edges,
+  });
+  return g(
+    [wrapper, op("root/checkpoint", "checkpoint")],
+    [e("$in", "root/_forward", [1, 2]), e("root/_forward", "$out", [1, 6]), e("$in", "root/checkpoint")],
+  );
+};
+
+test("a lone wrapper block is opened: its children are grouped in place", async () => {
+  const s = service([GOOD]);
+  const out = await groupGraph(wrapped(), s.llm, noSource);
+  expect(out?.groups.map((x) => x.name)).toEqual(["Stem", "Tail"]);
+  expect(ids(out!.paper.root)).toEqual(["root/_forward", "root/checkpoint"]);
+  const inside = out!.paper.root.children[0];
+  expect(ids(inside)).toEqual(["root/_forward/concept:0", "c", "root/_forward/concept:1"]);
+  expect(edgeList(out!.paper.root)).toEqual(edgeList(wrapped().root)); // outside edges untouched
+  expect(s.provider.prompts[0]).toContain("Inside: _forward");
+});
+
+test("a wrapper with fewer than four children is still too small", async () => {
+  const w = wrapped();
+  w.root.children[0].children = w.root.children[0].children.slice(0, 3);
+  const err = await groupGraph(w, service([GOOD]).llm, noSource).catch((x) => x);
+  expect(err instanceof LlmError && err.kind).toBe("invalid-output");
+});
+
 // ---- acceptance on the recorded FAST-SDE graph ------------------------------------------
 
 test("FAST-SDE: the recorded grouping is valid, gives 5–8 blocks, keeps the traced boundary shapes", () => {

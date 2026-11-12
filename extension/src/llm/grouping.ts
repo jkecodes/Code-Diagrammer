@@ -24,8 +24,33 @@ function unique<T>(values: T[]): T[] {
   return [...new Set(values)];
 }
 
+/**
+ * The block whose children are grouped: the graph's root, or — when the root has too few blocks —
+ * the wrapper inside it (the child with the most children, repeatedly), e.g. Net → _forward.
+ */
+function scopeOf(graph: Graph): { node: Node; path: number[] } {
+  let node = graph.root;
+  const path: number[] = [];
+  while (node.children.length < MIN_NODES) {
+    let best = -1;
+    node.children.forEach((c, i) => {
+      if (c.children.length > 0 && (best < 0 || c.children.length > node.children[best].children.length)) best = i;
+    });
+    if (best < 0) break;
+    path.push(best);
+    node = node.children[best];
+  }
+  return { node, path };
+}
+
+function replaceAt(node: Node, path: number[], inner: Node): Node {
+  if (path.length === 0) return inner;
+  const children = node.children.map((c, i) => (i === path[0] ? replaceAt(c, path.slice(1), inner) : c));
+  return { ...node, children };
+}
+
 export function describeGraph(graph: Graph, readLines: ReadLines): string {
-  const { root } = graph;
+  const { node: root, path } = scopeOf(graph);
   const withExcerpts = root.children.length <= MAX_NODES_WITH_EXCERPTS;
   const blocks = root.children.map((node) => {
     const entering = root.edges.filter((e) => e.to === node.id);
@@ -45,7 +70,8 @@ export function describeGraph(graph: Graph, readLines: ReadLines): string {
     }
     return lines.join("\n");
   });
-  return [`Model: ${root.type}`, "Blocks in forward order ($in / $out are the model's input / output):", ...blocks].join("\n");
+  const inside = path.length > 0 ? [`Inside: ${root.name}`] : [];
+  return [`Model: ${graph.root.type}`, ...inside, "Blocks in forward order ($in / $out are the model's input / output):", ...blocks].join("\n");
 }
 
 export function groupingPrompt(description: string, errors?: Rejection[]): string {
@@ -120,7 +146,7 @@ export function validateGroups(raw: unknown, graph: Graph): { groups: Group[]; r
   if (!raw || typeof raw !== "object" || !Array.isArray(list)) {
     throw new LlmError("invalid-output", "The language model did not return a list of groups");
   }
-  const { root } = graph;
+  const root = scopeOf(graph).node;
   const top = new Set(root.children.map((c) => c.id));
   const taken = new Set<string>();
   const owner = new Map<string, string>();
@@ -189,10 +215,10 @@ function pushUnique(into: Edge[], edge: Edge): void {
 
 /** Pure: wraps each group's blocks in a "concept" node. `groups` must come from validateGroups. */
 export function applyGrouping(graph: Graph, groups: Group[]): Graph {
-  const { root } = graph;
+  const { node: root, path } = scopeOf(graph);
   const owner = new Map<string, number>();
   groups.forEach((group, index) => group.nodeIds.forEach((id) => owner.set(id, index)));
-  const conceptId = (index: number) => `root/concept:${index}`;
+  const conceptId = (index: number) => `${root.id}/concept:${index}`;
 
   const concepts = groups.map((group, index): Node => {
     const members = root.children.filter((c) => owner.get(c.id) === index);
@@ -241,7 +267,7 @@ export function applyGrouping(graph: Graph, groups: Group[]): Graph {
       to: to === undefined ? edge.to : conceptId(to),
     });
   }
-  return { ...graph, meta: { ...graph.meta }, root: { ...root, children, edges } };
+  return { ...graph, meta: { ...graph.meta }, root: replaceAt(graph.root, path, { ...root, children, edges }) };
 }
 
 // ---- asking the model -----------------------------------------------------------------------
@@ -265,7 +291,7 @@ export async function groupGraph(
   graph: Graph, llm: LlmService, readLines: ReadLines,
   opts: { regenerate?: boolean; signal?: AbortSignal; cacheOnly?: boolean } = {},
 ): Promise<{ paper: Graph; groups: Group[] } | undefined> {
-  if (graph.root.children.length < MIN_NODES) {
+  if (scopeOf(graph).node.children.length < MIN_NODES) {
     if (opts.cacheOnly) return undefined;
     throw new LlmError("invalid-output", "Too small to group");
   }
