@@ -10,3 +10,6 @@ extension/python/
 *.vsix
 analyzer/tests/external/
 .superpowers/
+.env
+.env.*
+.code-diagrammer/
